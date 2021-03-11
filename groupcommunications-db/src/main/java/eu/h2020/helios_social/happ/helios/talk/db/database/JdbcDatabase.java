@@ -263,6 +263,13 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " REFERENCES contexts (contextId)"
                     + " ON DELETE CASCADE)";
 
+    private static final String CREATE_INVERTED_INDEX =
+            "CREATE TABLE inverted_index"
+                    + " (entity _STRING NOT NULL,"
+                    + " key _STRING NOT NULL,"
+                    + " value _BINARY NOT NULL,"
+                    + " PRIMARY KEY (entity, key))";
+
     private static final Logger LOG =
             getLogger(JdbcDatabase.class.getName());
 
@@ -432,6 +439,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             s.executeUpdate(dbTypes.replaceTypes(CREATE_MESSAGES));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_MESSAGE_METADATA));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_EVENTS));
+            s.executeUpdate(dbTypes.replaceTypes(CREATE_INVERTED_INDEX));
             s.close();
         } catch (SQLException e) {
             tryToClose(s, LOG, WARNING);
