@@ -1,13 +1,13 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import java.sql.Connection;
 import java.util.Collection;
 import java.util.Map;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DataTooNewException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DataTooOldException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooOldException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContactType;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.sharing.ContextInvitation;
 import eu.h2020.helios_social.modules.groupcommunications.api.event.HeliosEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMember;
@@ -17,11 +17,11 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageS
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupType;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Metadata;
-import eu.h2020.helios_social.happ.helios.talk.api.db.MigrationListener;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.MigrationListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContact;
@@ -245,6 +245,9 @@ interface Database<T> {
 	void removeForumMemberList(T txn, String groupId)
 			throws DbException;
 
+	void removeGroup(T txn, String groupId)
+			throws DbException;
+
 	void removeContextMetadata(T txn, String contextId)
 			throws DbException;
 
@@ -295,14 +298,23 @@ interface Database<T> {
 	Collection<PendingContact> getPendingContacts(T txn)
 			throws DbException;
 
+	int countPendingContacts(T txn, PendingContactType pendingContactType)
+			throws DbException;
+
 	Collection<ContextInvitation> getPendingContextInvitations(T txn)
+			throws DbException;
+
+	int countPendingContextInvitations(T txn, boolean isIncoming)
 			throws DbException;
 
 	Collection<GroupInvitation> getGroupInvitations(T txn)
 			throws DbException;
 
+	int countPendingGroupInvitations(T txn, boolean isIncoming)
+			throws DbException;
+
 	Collection<ContextInvitation> getPendingContextInvitations(T txn,
-			String contextId)
+															   String contextId)
 			throws DbException;
 
 	Message getMessage(T txn, String messageId)

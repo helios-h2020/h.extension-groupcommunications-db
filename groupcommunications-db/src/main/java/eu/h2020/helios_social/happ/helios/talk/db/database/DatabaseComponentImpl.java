@@ -1,31 +1,32 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import eu.h2020.helios_social.happ.helios.talk.api.contact.event.ContactAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.contact.event.ContactRemovedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.contact.event.PendingContactAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.contact.event.PendingContactRemovedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.context.ContextInvitationAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.context.ContextInvitationRemovedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.context.RemovePendingContextEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.db.CommitAction;
-import eu.h2020.helios_social.happ.helios.talk.api.db.CommitAction.Visitor;
-import eu.h2020.helios_social.happ.helios.talk.api.db.ContactExistsException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.ContextExistsException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DbCallable;
-import eu.h2020.helios_social.happ.helios.talk.api.db.GroupInvitationExistsException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchGroupException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchHeliosEventException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchMessageException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchPendingContextException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchPendingGroupException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.PendingContextInvitationExistsException;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.GroupAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.GroupInvitationAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.GroupInvitationRemovedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.MessageAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.RemovePendingGroupEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.PendingContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.PendingContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.context.RemovePendingContextEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction.Visitor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.ContactExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.ContextExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DbCallable;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.GroupInvitationExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchGroupException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchHeliosEventException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchMessageException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPendingContextException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPendingGroupException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.PendingContextInvitationExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.RemovePendingGroupEvent;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContactType;
 import eu.h2020.helios_social.modules.groupcommunications.api.event.HeliosEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMemberRole;
@@ -36,27 +37,27 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageH
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageState;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DbRunnable;
-import eu.h2020.helios_social.happ.helios.talk.api.db.EventAction;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Metadata;
-import eu.h2020.helios_social.happ.helios.talk.api.db.MigrationListener;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchContactException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchContextException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchIdentityException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NoSuchPendingContactException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.NullableDbCallable;
-import eu.h2020.helios_social.happ.helios.talk.api.db.PendingContactExistsException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.TaskAction;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventBus;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventExecutor;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.ShutdownManager;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.event.SettingsUpdatedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.ContextAddedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.ContextRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DbRunnable;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.EventAction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.MigrationListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchContactException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchContextException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchIdentityException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPendingContactException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NullableDbCallable;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.PendingContactExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.TaskAction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.ShutdownManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.event.SettingsUpdatedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContact;
@@ -77,9 +78,9 @@ import javax.inject.Inject;
 
 import static java.util.logging.Level.WARNING;
 import static java.util.logging.Logger.getLogger;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logDuration;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logException;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.now;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logDuration;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logException;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.now;
 
 @ThreadSafe
 @NotNullByDefault
@@ -133,7 +134,6 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     public Transaction startTransaction(boolean readOnly) throws DbException {
         // Don't allow reentrant locking
         if (lock.getReadHoldCount() > 0) throw new IllegalStateException();
-        if (lock.getWriteHoldCount() > 0) throw new IllegalStateException();
         long start = now();
         if (readOnly) {
             lock.readLock().lock();
@@ -262,6 +262,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         if (!db.containsContext(txn, contextId))
             throw new NoSuchContextException();
+        if (!db.containsProfile(txn, contextId))
+            return new Profile(contextId);
         return db.getProfile(txn, contextId);
     }
 
@@ -354,6 +356,12 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public boolean groupAlreadyExists(Transaction transaction, String groupId) throws DbException {
+        T txn = unbox(transaction);
+        return db.containsGroup(txn, groupId);
+    }
+
+    @Override
     public void addGroup(Transaction transaction, Group group,
                          byte[] descriptor, GroupType type)
             throws DbException {
@@ -413,6 +421,17 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchGroupException();
         db.removeForumMemberList(txn, groupId);
     }
+
+    @Override
+    public void removeGroup(Transaction transaction, String groupId)
+            throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsGroup(txn, groupId))
+            throw new NoSuchGroupException();
+        db.removeGroup(txn, groupId);
+    }
+
 
     @Override
     public void removeProfile(Transaction transaction, String contextId)
@@ -638,6 +657,13 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public int countPendingContacts(Transaction transaction,
+                                    PendingContactType pendingContactType) throws DbException {
+        T txn = unbox(transaction);
+        return db.countPendingContacts(txn, pendingContactType);
+    }
+
+    @Override
     public Collection<ContextInvitation> getPendingContextInvitations(
             Transaction transaction) throws DbException {
         T txn = unbox(transaction);
@@ -652,11 +678,25 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public int countPendingContextInvitations(Transaction transaction,
+                                              boolean isIncoming) throws DbException {
+        T txn = unbox(transaction);
+        return db.countPendingContextInvitations(txn, isIncoming);
+    }
+
+    @Override
     public Collection<GroupInvitation> getGroupInvitations(
             Transaction transaction)
             throws DbException {
         T txn = unbox(transaction);
         return db.getGroupInvitations(txn);
+    }
+
+    @Override
+    public int countPendingGroupInvitations(Transaction transaction,
+                                            boolean isIncoming) throws DbException {
+        T txn = unbox(transaction);
+        return db.countPendingGroupInvitations(txn, isIncoming);
     }
 
 

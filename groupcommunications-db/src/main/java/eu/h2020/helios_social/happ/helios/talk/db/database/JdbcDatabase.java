@@ -1,12 +1,11 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DataTooNewException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DataTooOldException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DbClosedException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooOldException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DbClosedException;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.sharing.ContextInvitation;
 import eu.h2020.helios_social.modules.groupcommunications.api.event.HeliosEvent;
-import eu.h2020.helios_social.modules.groupcommunications.api.forum.Forum;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMemberRole;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.sharing.GroupInvitationType;
@@ -15,12 +14,12 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageS
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupType;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Metadata;
-import eu.h2020.helios_social.happ.helios.talk.api.db.MigrationListener;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.MigrationListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContact;
@@ -28,9 +27,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingCon
 import eu.h2020.helios_social.modules.groupcommunications.api.context.ContextType;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.DBContext;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Message;
-import eu.h2020.helios_social.modules.groupcommunications.api.peer.Peer;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
-import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.sharing.GroupInvitation;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.Profile;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.ProfileBuilder;
@@ -56,7 +53,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import static eu.h2020.helios_social.happ.helios.talk.api.db.Metadata.REMOVE;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata.REMOVE;
 import static java.sql.Types.BINARY;
 import static java.sql.Types.VARCHAR;
 import static java.util.Arrays.asList;
@@ -68,9 +65,9 @@ import static eu.h2020.helios_social.happ.helios.talk.db.database.DatabaseConsta
 import static eu.h2020.helios_social.happ.helios.talk.db.database.DatabaseConstants.MAX_COMPACTION_INTERVAL_MS;
 import static eu.h2020.helios_social.happ.helios.talk.db.database.DatabaseConstants.SCHEMA_VERSION_KEY;
 import static eu.h2020.helios_social.happ.helios.talk.db.database.JdbcUtils.tryToClose;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logDuration;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logException;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.now;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logDuration;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logException;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.now;
 
 /**
  * A generic database implementation that can be used with any JDBC-compatible
@@ -80,7 +77,7 @@ import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.now;
 abstract class JdbcDatabase implements Database<Connection> {
 
     // Package access for testing
-    static final int CODE_SCHEMA_VERSION = 1;
+    static final int CODE_SCHEMA_VERSION = 2;
 
     private static final String CREATE_SETTINGS =
             "CREATE TABLE settings"
@@ -123,6 +120,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             "CREATE TABLE pendingContacts"
                     + " (pendingContactId _STRING NOT NULL,"
                     + " alias _STRING NOT NULL,"
+                    + " profilePicture BLOB,"
                     + " message _STRING,"
                     + " type INT NOT NULL,"
                     + " timestamp BIGINT NOT NULL,"
@@ -356,6 +354,7 @@ abstract class JdbcDatabase implements Database<Connection> {
     private boolean migrateSchema(Connection txn, Settings s,
                                   @Nullable MigrationListener listener) throws DbException {
         int dataSchemaVersion = s.getInt(SCHEMA_VERSION_KEY, -1);
+        LOG.info("data schema version: " + dataSchemaVersion);
         if (dataSchemaVersion == -1) throw new DbException();
         if (dataSchemaVersion == CODE_SCHEMA_VERSION) return false;
         if (CODE_SCHEMA_VERSION < dataSchemaVersion)
@@ -382,6 +381,7 @@ abstract class JdbcDatabase implements Database<Connection> {
     // Package access for testing
     List<Migration<Connection>> getMigrations() {
         return asList(
+                new Migration1_2(dbTypes)
         );
     }
 
@@ -790,7 +790,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         try {
             String sql = "INSERT INTO forumMemberList"
                     + " (groupId, peerId, fakeId, alias, role, timestamp)"
-                    + " VALUES (?, ?, ?, ?, ?)";
+                    + " VALUES (?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, forumMember.getGroupId());
             ps.setString(2, forumMember.getPeerId().getId());
@@ -815,7 +815,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         try {
             String sql = "INSERT INTO forumMemberList"
                     + " (groupId, peerId, fakeId, alias, role, timestamp)"
-                    + " VALUES (?, ?, ?, ?, ?)";
+                    + " VALUES (?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
 
             for (ForumMember forumMember : forumMembers) {
@@ -1782,11 +1782,19 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
+            StringBuilder builder = new StringBuilder();
+
+            for (int i = 0; i < groupIds.length; i++) {
+                builder.append("?,");
+            }
             String sql = "SELECT groupId, metaKey, value"
                     + " FROM groupMetadata"
-                    + " WHERE groupId IN (?)";
+                    + " WHERE groupId IN (" + builder.deleteCharAt(builder.length() - 1)
+                    .toString() + ")";
             ps = txn.prepareStatement(sql);
-            ps.setArray(1, txn.createArrayOf("VARCHAR", groupIds));
+            for (int i = 0; i < groupIds.length; i++) {
+                ps.setString(i + 1, groupIds[i]);
+            }
             rs = ps.executeQuery();
             Map<String, Metadata> all = new HashMap<>();
             while (rs.next()) {
@@ -1897,6 +1905,23 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public void removeGroup(Connection txn, String groupId)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "DELETE FROM groups WHERE groupId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, groupId);
+            int affected = ps.executeUpdate();
+            if (affected < 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public void removeContextMetadata(Connection txn, String contextId)
             throws DbException {
         PreparedStatement ps = null;
@@ -1940,14 +1965,18 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             String sql = "INSERT INTO pendingContacts (pendingContactId,"
-                    + " alias, message, type, timestamp)"
-                    + " VALUES (?, ?, ?, ?, ?)";
+                    + " alias, message, type, timestamp, profilePicture)"
+                    + " VALUES (?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, p.getId().getId());
             ps.setString(2, p.getAlias());
             ps.setString(3, p.getMessage());
             ps.setInt(4, p.getPendingContactType().getValue());
             ps.setLong(5, p.getTimestamp());
+            if (p.getProfilePicture() != null)
+                ps.setBytes(6, p.getProfilePicture());
+            else
+                ps.setNull(6, BINARY);
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
             ps.close();
@@ -2196,7 +2225,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            String sql = "SELECT alias, type, message, timestamp"
+            String sql = "SELECT alias, type, message, timestamp, profilePicture"
                     + " FROM pendingContacts"
                     + " WHERE pendingContactId = ?";
             ps = txn.prepareStatement(sql);
@@ -2208,7 +2237,8 @@ abstract class JdbcDatabase implements Database<Connection> {
                     PendingContactType.fromValue(rs.getInt(2));
             String message = rs.getString(3);
             long timestamp = rs.getLong(4);
-            return new PendingContact(pendingContactId, alias, type,
+            byte[] profilePicture = rs.getBytes(5);
+            return new PendingContact(pendingContactId, alias, profilePicture, type,
                     message,
                     timestamp);
         } catch (SQLException e) {
@@ -2225,7 +2255,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         ResultSet rs = null;
         try {
             String sql =
-                    "SELECT pendingContactId, alias, type, timestamp, message"
+                    "SELECT pendingContactId, alias, type, timestamp, message, profilePicture"
                             + " FROM pendingContacts";
             s = txn.createStatement();
             rs = s.executeQuery(sql);
@@ -2237,8 +2267,9 @@ abstract class JdbcDatabase implements Database<Connection> {
                         PendingContactType.fromValue(rs.getInt(3));
                 long timestamp = rs.getLong(4);
                 String message = rs.getString(5);
+                byte[] profilePicture = rs.getBytes(6);
                 pendingContacts
-                        .add(new PendingContact(id, alias, type, message,
+                        .add(new PendingContact(id, alias, profilePicture, type, message,
                                 timestamp));
             }
             rs.close();
@@ -2247,6 +2278,30 @@ abstract class JdbcDatabase implements Database<Connection> {
         } catch (SQLException e) {
             tryToClose(rs, LOG, WARNING);
             tryToClose(s, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public int countPendingContacts(Connection txn, PendingContactType pendingContactType)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT COUNT(*) AS total"
+                            + " FROM pendingContacts WHERE type = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setInt(1, pendingContactType.getValue());
+            rs = ps.executeQuery();
+            int count = 0;
+            if (rs.next()) count = rs.getInt("total");
+            rs.close();
+            ps.close();
+            return count;
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
             throw new DbException(e);
         }
     }
@@ -2292,6 +2347,30 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public int countPendingContextInvitations(Connection txn, boolean isIncoming)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT COUNT(*) AS total"
+                            + " FROM contextInvites WHERE incoming = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setBoolean(1, isIncoming);
+            rs = ps.executeQuery();
+            int count = 0;
+            if (rs.next()) count = rs.getInt("total");
+            rs.close();
+            ps.close();
+            return count;
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public Collection<GroupInvitation> getGroupInvitations(Connection txn)
             throws DbException {
         Statement s = null;
@@ -2324,6 +2403,30 @@ abstract class JdbcDatabase implements Database<Connection> {
         } catch (SQLException e) {
             tryToClose(rs, LOG, WARNING);
             tryToClose(s, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public int countPendingGroupInvitations(Connection txn, boolean isIncoming)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT COUNT(*) AS total"
+                            + " FROM groupInvites WHERE incoming = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setBoolean(1, isIncoming);
+            rs = ps.executeQuery();
+            int count = 0;
+            if (rs.next()) count = rs.getInt("total");
+            rs.close();
+            ps.close();
+            return count;
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
             throw new DbException(e);
         }
     }
@@ -2457,7 +2560,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         ResultSet rs = null;
         try {
             String sql =
-                    "SELECT messageId, timestamp, state, incoming, favourite, type FROM messages " +
+                    "SELECT messageId, timestamp, state, incoming, favourite, type, CASE WHEN text IS NULL THEN FALSE ELSE TRUE END AS hasText FROM messages " +
                             "WHERE groupId = ?";
             ps = txn.prepareStatement(sql);
             ps.setString(1, groupId);
@@ -2471,9 +2574,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                 boolean incoming = rs.getBoolean(4);
                 boolean favourite = rs.getBoolean(5);
                 Message.Type msgType = Message.Type.fromValue(rs.getInt(6));
+                boolean hasText = rs.getBoolean(7);
                 messageHeaders.add(
                         new MessageHeader(messageId, groupId, timestamp,
-                                messageState, incoming, favourite, msgType)
+                                messageState, incoming, favourite, msgType, hasText)
                 );
             }
             rs.close();
@@ -2494,7 +2598,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         ResultSet rs = null;
         try {
             String sql =
-                    "SELECT messageId, groupId, text, timestamp FROM messages WHERE contextId = ?" +
+                    "SELECT messageId, groupId, text, timestamp, type FROM messages WHERE contextId = ?" +
                             " AND favourite = TRUE";
             ps = txn.prepareStatement(sql);
             ps.setString(1, contextId);
@@ -2505,8 +2609,9 @@ abstract class JdbcDatabase implements Database<Connection> {
                 String groupId = rs.getString(2);
                 String message_text = rs.getString(3);
                 long timestamp = rs.getLong(4);
+                Message.Type type = Message.Type.fromValue(rs.getInt(5));
                 favourites.add(new Message(messageId, groupId, timestamp,
-                        message_text, Message.Type.TEXT)
+                        message_text, type)
                 );
             }
             rs.close();
