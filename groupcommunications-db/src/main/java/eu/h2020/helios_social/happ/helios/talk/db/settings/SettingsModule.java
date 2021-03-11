@@ -1,7 +1,7 @@
 package eu.h2020.helios_social.happ.helios.talk.db.settings;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.SettingsManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsManager;
 
 import dagger.Module;
 import dagger.Provides;

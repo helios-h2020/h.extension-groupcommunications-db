@@ -1,13 +1,13 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseConfig;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DbClosedException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseConfig;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DbClosedException;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.MigrationListener;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
-import eu.h2020.helios_social.happ.helios.talk.api.util.StringUtils;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.MigrationListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.util.StringUtils;
 
 import java.io.File;
 import java.sql.Connection;
@@ -24,8 +24,8 @@ import static eu.h2020.helios_social.happ.helios.talk.db.database.JdbcUtils.tryT
 import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.WARNING;
 import static java.util.logging.Logger.getLogger;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.IoUtils.isNonEmptyDirectory;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logFileOrDir;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.IoUtils.isNonEmptyDirectory;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logFileOrDir;
 
 /**
  * Contains all the H2-specific code for the database.

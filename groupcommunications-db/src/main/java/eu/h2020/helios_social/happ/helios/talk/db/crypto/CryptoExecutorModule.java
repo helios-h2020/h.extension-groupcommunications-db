@@ -1,7 +1,7 @@
 package eu.h2020.helios_social.happ.helios.talk.db.crypto;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.CryptoExecutor;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.LifecycleManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.CryptoExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;

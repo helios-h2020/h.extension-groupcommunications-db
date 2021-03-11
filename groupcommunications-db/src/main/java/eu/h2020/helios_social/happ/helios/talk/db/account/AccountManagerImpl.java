@@ -1,16 +1,16 @@
 package eu.h2020.helios_social.happ.helios.talk.db.account;
 
-import eu.h2020.helios_social.happ.helios.talk.api.account.AccountManager;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.CryptoComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionException;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.KeyStrengthener;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseConfig;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.IdentityManager;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.MethodsNotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.ParametersNotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.util.IoUtils;
+import eu.h2020.helios_social.modules.groupcommunications_utils.account.AccountManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.CryptoComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.KeyStrengthener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseConfig;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.MethodsNotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.ParametersNotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.util.IoUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,10 +27,10 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
 import static java.util.logging.Level.WARNING;
-import static eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionResult.INVALID_CIPHERTEXT;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logException;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.StringUtils.fromHexString;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.StringUtils.toHexString;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionResult.INVALID_CIPHERTEXT;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logException;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.StringUtils.fromHexString;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.StringUtils.toHexString;
 
 @MethodsNotNullByDefault
 @ParametersNotNullByDefault

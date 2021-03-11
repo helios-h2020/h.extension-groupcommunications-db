@@ -1,16 +1,16 @@
 package eu.h2020.helios_social.happ.helios.talk.db.identity;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.CryptoComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.CryptoComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.ContextType;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.DBContext;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.IdentityManager;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.LifecycleManager;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 
 import java.util.logging.Logger;
 
@@ -18,10 +18,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
-import static eu.h2020.helios_social.happ.helios.talk.api.contact.HeliosLinkConstants.LINK_PREFIX;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.contact.HeliosLinkConstants.LINK_PREFIX;
 import static java.util.logging.Logger.getLogger;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logDuration;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.now;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logDuration;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.now;
 
 @ThreadSafe
 @NotNullByDefault

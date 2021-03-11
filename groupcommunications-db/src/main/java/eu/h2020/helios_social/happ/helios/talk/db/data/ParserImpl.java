@@ -1,12 +1,12 @@
 package eu.h2020.helios_social.happ.helios.talk.db.data;
 
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfDictionary;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfList;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfReader;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfReaderFactory;
-import eu.h2020.helios_social.happ.helios.talk.api.data.Parser;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Metadata;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfReader;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfReaderFactory;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.Parser;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 
 import java.io.ByteArrayInputStream;
@@ -16,8 +16,8 @@ import java.util.Map.Entry;
 import javax.annotation.concurrent.Immutable;
 import javax.inject.Inject;
 
-import static eu.h2020.helios_social.happ.helios.talk.api.data.BdfDictionary.NULL_VALUE;
-import static eu.h2020.helios_social.happ.helios.talk.api.db.Metadata.REMOVE;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary.NULL_VALUE;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata.REMOVE;
 
 @Immutable
 @NotNullByDefault

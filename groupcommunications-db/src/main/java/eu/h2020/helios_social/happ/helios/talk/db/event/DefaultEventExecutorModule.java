@@ -1,6 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db.event;
 
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventExecutor;
 
 import java.util.concurrent.Executor;
 

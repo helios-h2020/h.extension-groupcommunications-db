@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.WARNING;
 import static java.util.logging.Logger.getLogger;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.logException;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.logException;
 
 public class UnixSecureRandomSpi extends SecureRandomSpi {
 

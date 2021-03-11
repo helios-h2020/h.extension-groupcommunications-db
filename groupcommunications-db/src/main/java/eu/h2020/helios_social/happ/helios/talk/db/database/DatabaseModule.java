@@ -1,12 +1,12 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseConfig;
-import eu.h2020.helios_social.happ.helios.talk.api.db.TransactionManager;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventBus;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventExecutor;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.ShutdownManager;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseConfig;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.TransactionManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.ShutdownManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 
 import java.sql.Connection;
 import java.util.concurrent.Executor;

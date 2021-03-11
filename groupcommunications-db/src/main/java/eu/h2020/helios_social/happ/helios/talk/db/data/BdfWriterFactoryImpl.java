@@ -1,8 +1,8 @@
 package eu.h2020.helios_social.happ.helios.talk.db.data;
 
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfWriter;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfWriterFactory;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfWriter;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfWriterFactory;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 
 import java.io.OutputStream;
 

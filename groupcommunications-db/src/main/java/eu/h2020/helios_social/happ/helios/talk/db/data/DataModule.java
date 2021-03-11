@@ -1,12 +1,12 @@
 package eu.h2020.helios_social.happ.helios.talk.db.data;
 
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfReaderFactory;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfWriterFactory;
-import eu.h2020.helios_social.happ.helios.talk.api.data.Encoder;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfReaderFactory;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfWriterFactory;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 
 import dagger.Module;
 import dagger.Provides;
-import eu.h2020.helios_social.happ.helios.talk.api.data.Parser;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.Parser;
 
 @Module
 public class DataModule {

@@ -1,12 +1,12 @@
 package eu.h2020.helios_social.happ.helios.talk.db.crypto;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.CryptoComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionException;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.KeyStrengthener;
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.system.SecureRandomProvider;
-import eu.h2020.helios_social.happ.helios.talk.api.util.ByteUtils;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.CryptoComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.KeyStrengthener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.SecureRandomProvider;
+import eu.h2020.helios_social.modules.groupcommunications_utils.util.ByteUtils;
 
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
@@ -20,10 +20,10 @@ import javax.inject.Inject;
 
 import static java.lang.System.arraycopy;
 import static java.util.logging.Level.INFO;
-import static eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionResult.INVALID_CIPHERTEXT;
-import static eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionResult.INVALID_PASSWORD;
-import static eu.h2020.helios_social.happ.helios.talk.api.crypto.DecryptionResult.KEY_STRENGTHENER_ERROR;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.ByteUtils.INT_32_BYTES;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionResult.INVALID_CIPHERTEXT;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionResult.INVALID_PASSWORD;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.crypto.DecryptionResult.KEY_STRENGTHENER_ERROR;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.ByteUtils.INT_32_BYTES;
 
 @NotNullByDefault
 class CryptoComponentImpl implements CryptoComponent {

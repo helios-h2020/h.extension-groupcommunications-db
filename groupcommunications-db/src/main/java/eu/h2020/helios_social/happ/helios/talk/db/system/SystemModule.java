@@ -1,8 +1,8 @@
 package eu.h2020.helios_social.happ.helios.talk.db.system;
 
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.LifecycleManager;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Scheduler;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Scheduler;
 
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;

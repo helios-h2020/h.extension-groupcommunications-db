@@ -13,16 +13,16 @@ import eu.h2020.helios_social.happ.helios.talk.db.settings.SettingsModule;
 import eu.h2020.helios_social.happ.helios.talk.db.system.SystemModule;
 
 @Module(includes = {
-		CryptoModule.class,
-		CryptoExecutorModule.class,
-		DataModule.class,
-		DatabaseModule.class,
-		DatabaseExecutorModule.class,
-		EventModule.class,
-		IdentityModule.class,
-		LifecycleModule.class,
-		SettingsModule.class,
-		SystemModule.class,
+        CryptoModule.class,
+        CryptoExecutorModule.class,
+        DataModule.class,
+        DatabaseModule.class,
+        DatabaseExecutorModule.class,
+        EventModule.class,
+        IdentityModule.class,
+        LifecycleModule.class,
+        SettingsModule.class,
+        SystemModule.class,
 })
-public class HeliosTalkDbModule {
+public class GroupCommunicationsDbModule {
 }

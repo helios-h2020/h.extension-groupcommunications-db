@@ -1,6 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db;
 
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
 
 import static java.util.logging.Level.FINE;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.LogUtils.now;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogUtils.now;
 
 /**
  * An {@link Executor} that delegates its tasks to another {@link Executor}

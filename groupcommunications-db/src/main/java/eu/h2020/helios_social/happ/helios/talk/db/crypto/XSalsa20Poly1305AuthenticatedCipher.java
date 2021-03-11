@@ -1,7 +1,7 @@
 package eu.h2020.helios_social.happ.helios.talk.db.crypto;
 
-import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 import org.spongycastle.crypto.DataLengthException;
 import org.spongycastle.crypto.engines.XSalsa20Engine;
 import org.spongycastle.crypto.generators.Poly1305KeyGenerator;
@@ -13,7 +13,7 @@ import java.security.GeneralSecurityException;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static eu.h2020.helios_social.happ.helios.talk.api.transport.TransportConstants.MAC_LENGTH;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.transport.TransportConstants.MAC_LENGTH;
 
 /**
  * An authenticated cipher that uses XSalsa20 for encryption and Poly1305 for

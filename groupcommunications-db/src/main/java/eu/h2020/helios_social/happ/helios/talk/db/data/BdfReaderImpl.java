@@ -1,9 +1,9 @@
 package eu.h2020.helios_social.happ.helios.talk.db.data;
 
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfDictionary;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfList;
-import eu.h2020.helios_social.happ.helios.talk.api.data.BdfReader;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
+import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfReader;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 
 import java.io.IOException;
@@ -11,7 +11,7 @@ import java.io.InputStream;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import static eu.h2020.helios_social.happ.helios.talk.api.data.BdfDictionary.NULL_VALUE;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary.NULL_VALUE;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.DICTIONARY;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.END;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.FALSE;
@@ -29,7 +29,7 @@ import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.STRING_16;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.STRING_32;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.STRING_8;
 import static eu.h2020.helios_social.happ.helios.talk.db.data.Types.TRUE;
-import static eu.h2020.helios_social.happ.helios.talk.api.util.StringUtils.fromUtf8;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.util.StringUtils.fromUtf8;
 
 @NotThreadSafe
 @NotNullByDefault

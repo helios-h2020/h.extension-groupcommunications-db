@@ -1,11 +1,11 @@
 package eu.h2020.helios_social.happ.helios.talk.db.settings;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
-import eu.h2020.helios_social.happ.helios.talk.api.settings.SettingsManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsManager;
 
 import javax.annotation.concurrent.Immutable;
 import javax.inject.Inject;

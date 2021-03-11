@@ -1,6 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
-import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
 
 import static java.util.concurrent.TimeUnit.DAYS;
 

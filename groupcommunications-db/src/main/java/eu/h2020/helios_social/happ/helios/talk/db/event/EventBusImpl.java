@@ -1,10 +1,10 @@
 package eu.h2020.helios_social.happ.helios.talk.db.event;
 
-import eu.h2020.helios_social.happ.helios.talk.api.event.Event;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventBus;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventExecutor;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventListener;
-import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;

@@ -1,6 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db.account;
 
-import eu.h2020.helios_social.happ.helios.talk.api.account.AccountManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.account.AccountManager;
 
 import javax.inject.Singleton;
 
