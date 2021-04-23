@@ -78,9 +78,9 @@ class EncoderImpl implements Encoder {
     private void encodeObject(BdfWriter writer, Object o)
             throws IOException {
         if (o instanceof Boolean) writer.writeBoolean((Boolean) o);
-        else if (o instanceof Byte) writer.writeLong((Byte) o);
-        else if (o instanceof Short) writer.writeLong((Short) o);
-        else if (o instanceof Integer) writer.writeLong((Integer) o);
+        else if (o instanceof Byte) writer.writeInteger((Byte) o);
+        else if (o instanceof Short) writer.writeInteger((Short) o);
+        else if (o instanceof Integer) writer.writeInteger((Integer) o);
         else if (o instanceof Long) writer.writeLong((Long) o);
         else if (o instanceof Float) writer.writeDouble((Float) o);
         else if (o instanceof Double) writer.writeDouble((Double) o);
