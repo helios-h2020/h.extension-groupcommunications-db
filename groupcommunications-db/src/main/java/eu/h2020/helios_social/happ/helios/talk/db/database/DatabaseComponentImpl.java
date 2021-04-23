@@ -1,5 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.PendingContactAddedEvent;
@@ -737,6 +738,14 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public MessageHeader getMessageHeader(Transaction transaction, String messageId) throws DbException {
+        T txn = unbox(transaction);
+        if (!db.containsMessage(txn, messageId))
+            throw new NoSuchMessageException();
+        return db.getMessageHeader(txn, messageId);
+    }
+
+    @Override
     public void removeContact(Transaction transaction, ContactId c)
             throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
@@ -776,7 +785,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         if (!db.containsGroup(txn, forumMember.getGroupId())) {
             throw new NoSuchGroupException();
         }
-        db.addForumMember(txn, forumMember);
+        if (!db.containsForumMember(txn, forumMember.getGroupId(), forumMember.getPeerId().getFakeId()))
+            db.addForumMember(txn, forumMember);
     }
 
     @Override
@@ -897,6 +907,15 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public Metadata getInvertedIndexMetadata(Transaction transaction, EntityType entityType, String contextId)
+            throws DbException {
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchGroupException();
+        return db.getInvertedIndexMetadata(txn, entityType, contextId);
+    }
+
+    @Override
     public Map<String, Metadata> getGroupMetadata(
             Transaction transaction, String[] groupIds)
             throws DbException {
@@ -989,6 +1008,17 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         if (!db.containsGroup(txn, groupId))
             throw new NoSuchGroupException();
         db.mergeGroupMetadata(txn, groupId, meta);
+    }
+
+    @Override
+    public void mergeInvertedIndexMetadata(Transaction transaction, EntityType entity, String contextId,
+                                           Metadata meta)
+            throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        db.mergeInvertedIndexMetadata(txn, entity, contextId, meta);
     }
 
     @Override
