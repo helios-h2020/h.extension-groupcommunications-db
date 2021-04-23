@@ -1,5 +1,6 @@
 package eu.h2020.helios_social.happ.helios.talk.db.database;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooOldException;
@@ -77,7 +78,7 @@ import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogU
 abstract class JdbcDatabase implements Database<Connection> {
 
     // Package access for testing
-    static final int CODE_SCHEMA_VERSION = 2;
+    static final int CODE_SCHEMA_VERSION = 4;
 
     private static final String CREATE_SETTINGS =
             "CREATE TABLE settings"
@@ -207,6 +208,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " (groupId _STRING NOT NULL,"
                     + " peerId _STRING NOT NULL,"
                     + " fakeId _STRING,"
+                    + " fakename _STRING,"
                     + " alias _STRING,"
                     + " role INT NOT NULL,"
                     + " timestamp BIGINT NOT NULL,"
@@ -266,9 +268,13 @@ abstract class JdbcDatabase implements Database<Connection> {
     private static final String CREATE_INVERTED_INDEX =
             "CREATE TABLE inverted_index"
                     + " (entity _STRING NOT NULL,"
+                    + " contextId _STRING NOT NULL,"
                     + " key _STRING NOT NULL,"
                     + " value _BINARY NOT NULL,"
-                    + " PRIMARY KEY (entity, key))";
+                    + " PRIMARY KEY (entity, contextId, key),"
+                    + " FOREIGN KEY (contextId)"
+                    + " REFERENCES contexts (contextId)"
+                    + " ON DELETE CASCADE)";
 
     private static final Logger LOG =
             getLogger(JdbcDatabase.class.getName());
@@ -388,7 +394,9 @@ abstract class JdbcDatabase implements Database<Connection> {
     // Package access for testing
     List<Migration<Connection>> getMigrations() {
         return asList(
-                new Migration1_2(dbTypes)
+                new Migration1_2(dbTypes),
+                new Migration2_3(dbTypes),
+                new Migration3_4(dbTypes)
         );
     }
 
@@ -773,7 +781,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " (eventId, contextId, title, description, url, lat, lng, type, timestamp)"
                     + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
-            ps.setString(1, event.getEventId());
+            ps.setString(1, event.getId());
             ps.setString(2, event.getContextId());
             ps.setString(3, event.getTitle());
             ps.setString(4, event.getDescription());
@@ -797,15 +805,16 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             String sql = "INSERT INTO forumMemberList"
-                    + " (groupId, peerId, fakeId, alias, role, timestamp)"
-                    + " VALUES (?, ?, ?, ?, ?, ?)";
+                    + " (groupId, peerId, fakeId, alias, fakename, role, timestamp)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, forumMember.getGroupId());
             ps.setString(2, forumMember.getPeerId().getId());
             ps.setString(3, forumMember.getPeerId().getFakeId());
             ps.setString(4, forumMember.getAlias());
-            ps.setInt(5, forumMember.getRole().getInt());
-            ps.setLong(6, forumMember.getLstTimestamp());
+            ps.setString(5, forumMember.getFakeName());
+            ps.setInt(6, forumMember.getRole().getInt());
+            ps.setLong(7, forumMember.getLstTimestamp());
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
             ps.close();
@@ -822,8 +831,8 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             String sql = "INSERT INTO forumMemberList"
-                    + " (groupId, peerId, fakeId, alias, role, timestamp)"
-                    + " VALUES (?, ?, ?, ?, ?, ?)";
+                    + " (groupId, peerId, fakeId, alias, fakename, role, timestamp)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
 
             for (ForumMember forumMember : forumMembers) {
@@ -831,8 +840,9 @@ abstract class JdbcDatabase implements Database<Connection> {
                 ps.setString(2, forumMember.getPeerId().getId());
                 ps.setString(3, forumMember.getPeerId().getFakeId());
                 ps.setString(4, forumMember.getAlias());
-                ps.setInt(5, forumMember.getRole().getInt());
-                ps.setLong(6, forumMember.getLstTimestamp());
+                ps.setString(5, forumMember.getFakeName());
+                ps.setInt(6, forumMember.getRole().getInt());
+                ps.setLong(7, forumMember.getLstTimestamp());
                 ps.addBatch();
             }
             int[] batchAffected = ps.executeBatch();
@@ -1166,6 +1176,29 @@ abstract class JdbcDatabase implements Database<Connection> {
             String sql = "SELECT NULL FROM groups WHERE groupId = ?";
             ps = txn.prepareStatement(sql);
             ps.setString(1, groupId);
+            rs = ps.executeQuery();
+            boolean found = rs.next();
+            if (rs.next()) throw new DbStateException();
+            rs.close();
+            ps.close();
+            return found;
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public boolean containsForumMember(Connection txn, String groupId, String fakeId)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT NULL FROM forumMemberList WHERE groupId = ? AND fakeId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, groupId);
+            ps.setString(2, fakeId);
             rs = ps.executeQuery();
             boolean found = rs.next();
             if (rs.next()) throw new DbStateException();
@@ -1555,7 +1588,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            String sql = "SELECT peerId, fakeId, alias, role, timestamp" +
+            String sql = "SELECT peerId, fakeId, alias, fakename, role, timestamp" +
                     " FROM forumMemberList WHERE groupId = ?";
             ps = txn.prepareStatement(sql);
             ps.setString(1, groupId);
@@ -1568,8 +1601,9 @@ abstract class JdbcDatabase implements Database<Connection> {
                                         rs.getString(2)),
                                 groupId,
                                 rs.getString(3),
-                                ForumMemberRole.valueOf(rs.getInt(4)),
-                                rs.getLong(5)));
+                                rs.getString(4),
+                                ForumMemberRole.valueOf(rs.getInt(5)),
+                                rs.getLong(6)));
             }
             rs.close();
             ps.close();
@@ -1771,6 +1805,30 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " WHERE groupId = ?";
             ps = txn.prepareStatement(sql);
             ps.setString(1, groupId);
+            rs = ps.executeQuery();
+            Metadata metadata = new Metadata();
+            while (rs.next()) metadata.put(rs.getString(1), rs.getBytes(2));
+            rs.close();
+            ps.close();
+            return metadata;
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public Metadata getInvertedIndexMetadata(Connection txn, EntityType entityType, String contextId)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT key, value FROM inverted_index"
+                    + " WHERE entity = ? AND contextId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, entityType.toString());
+            ps.setString(2, contextId);
             rs = ps.executeQuery();
             Metadata metadata = new Metadata();
             while (rs.next()) metadata.put(rs.getString(1), rs.getBytes(2));
@@ -2599,6 +2657,40 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public MessageHeader getMessageHeader(Connection txn,
+                                          String messageId)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT groupId, timestamp, state, incoming, favourite, type, CASE WHEN text IS NULL THEN FALSE ELSE TRUE END AS hasText FROM messages " +
+                            "WHERE messageId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, messageId);
+            rs = ps.executeQuery();
+            if (!rs.next()) return null;
+            String groupId = rs.getString(1);
+            long timestamp = rs.getLong(2);
+            MessageState messageState =
+                    MessageState.fromValue(rs.getInt(3));
+            boolean incoming = rs.getBoolean(4);
+            boolean favourite = rs.getBoolean(5);
+            Message.Type msgType = Message.Type.fromValue(rs.getInt(6));
+            boolean hasText = rs.getBoolean(7);
+
+            rs.close();
+            ps.close();
+            return new MessageHeader(messageId, groupId, timestamp,
+                    messageState, incoming, favourite, msgType, hasText);
+        } catch (SQLException e) {
+            tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public Collection<Message> getFavourites(Connection txn,
                                              String contextId)
             throws DbException {
@@ -2815,10 +2907,43 @@ abstract class JdbcDatabase implements Database<Connection> {
             ps = txn.prepareStatement(sql);
             ps.setString(1, groupId);
             rs = ps.executeQuery();
-            if (!rs.next()) throw new DbStateException();
+            if (!rs.next() || rs.getString(1) == null) return null;
             return new ContactId(rs.getString(1));
         } catch (SQLException e) {
             tryToClose(rs, LOG, WARNING);
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void mergeInvertedIndexMetadata(Connection txn, EntityType entityType, String contextId,
+                                           Metadata meta)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            Map<String, byte[]> added = removeOrUpdateInvertedIndexMetadata(txn,
+                    entityType.toString(), contextId, meta, "inverted_index", "entity");
+            if (added.isEmpty()) return;
+            // Insert any keys that don't already exist
+            String sql =
+                    "INSERT INTO inverted_index (entity, contextId, key, value)"
+                            + " VALUES (?, ?, ?, ?)";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, entityType.toString());
+            ps.setString(2, contextId);
+            for (Map.Entry<String, byte[]> e : added.entrySet()) {
+                ps.setString(3, e.getKey());
+                ps.setBytes(4, e.getValue());
+                ps.addBatch();
+            }
+            int[] batchAffected = ps.executeBatch();
+            if (batchAffected.length != added.size())
+                throw new DbStateException();
+            for (int rows : batchAffected)
+                if (rows != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
             tryToClose(ps, LOG, WARNING);
             throw new DbException(e);
         }
@@ -2943,6 +3068,74 @@ abstract class JdbcDatabase implements Database<Connection> {
             for (Map.Entry<String, byte[]> e : notRemoved.entrySet()) {
                 ps.setBytes(1, e.getValue());
                 ps.setString(3, e.getKey());
+                ps.addBatch();
+            }
+
+            int[] batchAffected = ps.executeBatch();
+            if (batchAffected.length != notRemoved.size())
+                throw new DbStateException();
+            for (int rows : batchAffected) {
+                if (rows < 0) throw new DbStateException();
+                if (rows > 1) throw new DbStateException();
+            }
+            ps.close();
+            // Are there any keys that don't already exist?
+            Map<String, byte[]> added = new HashMap<>();
+            int updateIndex = 0;
+            for (Map.Entry<String, byte[]> e : notRemoved.entrySet()) {
+                if (batchAffected[updateIndex++] == 0)
+                    added.put(e.getKey(), e.getValue());
+            }
+            return added;
+        } catch (SQLException e) {
+            tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    private Map<String, byte[]> removeOrUpdateInvertedIndexMetadata(Connection txn,
+                                                                    String id, String contextId,
+                                                                    Metadata meta, String tableName, String columnName)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            // Determine which keys are being removed
+            List<String> removed = new ArrayList<>();
+            Map<String, byte[]> notRemoved = new HashMap<>();
+            for (Map.Entry<String, byte[]> e : meta.entrySet()) {
+                if (e.getValue() == REMOVE) removed.add(e.getKey());
+                else notRemoved.put(e.getKey(), e.getValue());
+            }
+            // Delete any keys that are being removed
+            if (!removed.isEmpty()) {
+                String sql = "DELETE FROM " + tableName
+                        + " WHERE " + columnName + " = ? AND key = ? AND contextId = ?";
+                ps = txn.prepareStatement(sql);
+                ps.setString(1, id);
+                ps.setString(3, contextId);
+                for (String key : removed) {
+                    ps.setString(2, key);
+                    ps.addBatch();
+                }
+                int[] batchAffected = ps.executeBatch();
+                if (batchAffected.length != removed.size())
+                    throw new DbStateException();
+                for (int rows : batchAffected) {
+                    if (rows < 0) throw new DbStateException();
+                    if (rows > 1) throw new DbStateException();
+                }
+                ps.close();
+            }
+            if (notRemoved.isEmpty()) return Collections.emptyMap();
+            // Update any keys that already exist
+            String sql = "UPDATE " + tableName + " SET value = ?"
+                    + " WHERE " + columnName + " = ? AND key = ? AND contextId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(2, id);
+            for (Map.Entry<String, byte[]> e : notRemoved.entrySet()) {
+                ps.setBytes(1, e.getValue());
+                ps.setString(3, e.getKey());
+                ps.setString(4, contextId);
                 ps.addBatch();
             }
 
