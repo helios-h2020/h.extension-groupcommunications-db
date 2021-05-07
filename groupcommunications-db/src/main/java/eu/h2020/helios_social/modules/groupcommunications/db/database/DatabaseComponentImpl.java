@@ -1,13 +1,6 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
 
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
-import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactAddedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.ContactRemovedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.PendingContactAddedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.contact.event.PendingContactRemovedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationAddedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationRemovedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.context.RemovePendingContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction.Visitor;
@@ -22,10 +15,17 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchMessage
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPendingContextException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPendingGroupException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.PendingContextInvitationExistsException;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.RemovePendingContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.RemovePendingGroupEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContactType;
 import eu.h2020.helios_social.modules.groupcommunications.api.event.HeliosEvent;
@@ -330,8 +330,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
                 db.containsContext(txn, contextInvite.getContextId()))
             throw new ContextExistsException(contextInvite.getContextId());
         if (db.containsPendingContextInvitation(txn,
-                contextInvite.getContactId(),
-                contextInvite.getContextId()))
+                                                contextInvite.getContactId(),
+                                                contextInvite.getContextId()))
             throw new PendingContextInvitationExistsException(contextInvite);
         db.addContextInvitation(txn, contextInvite);
         transaction.attach(new ContextInvitationAddedEvent(contextInvite));
@@ -349,8 +349,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         if (!db.containsContext(txn, groupInvitations.getContextId()))
             throw new NoSuchContextException();
         if (db.containsPendingGroupInvitation(txn,
-                groupInvitations.getContactId(),
-                groupInvitations.getGroupId()))
+                                              groupInvitations.getContactId(),
+                                              groupInvitations.getGroupId()))
             throw new GroupInvitationExistsException(groupInvitations);
         db.addGroupInvitation(txn, groupInvitations);
         transaction.attach(new GroupInvitationAddedEvent(groupInvitations));
@@ -818,7 +818,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchGroupException();
         }
         db.updateForumMemberRole(txn, groupId, fakeId, forumMemberRole,
-                timestamp);
+                                 timestamp);
     }
 
     @Override
@@ -973,11 +973,11 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
         if (!db.containsPendingContextInvitation(txn, contactId,
-                pendingContextId))
+                                                 pendingContextId))
             throw new NoSuchPendingContextException();
         db.removeContextInvitation(txn, contactId, pendingContextId);
         transaction.attach(new ContextInvitationRemovedEvent(contactId,
-                pendingContextId));
+                                                             pendingContextId));
     }
 
     @Override
@@ -989,7 +989,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchPendingGroupException();
         db.removeGroupInvitation(txn, contactId, pendingGroupId);
         transaction.attach(new GroupInvitationRemovedEvent(contactId,
-                pendingGroupId));
+                                                           pendingGroupId));
     }
 
     @Override
