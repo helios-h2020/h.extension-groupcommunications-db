@@ -1,0 +1,2 @@
+include ':groupcommunications-db'
+rootProject.name = "groupcommunications-db"

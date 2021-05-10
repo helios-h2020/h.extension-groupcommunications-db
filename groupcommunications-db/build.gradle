@@ -1,0 +1,32 @@
+apply plugin: 'java-library'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: 'ru.vyarus.animalsniffer'
+apply plugin: 'idea'
+apply from: '../dagger.gradle'
+
+/*configurations.all {
+	resolutionStrategy.dependencySubstitution {
+		substitute module("eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils") with project(':groupcommunications-utils')
+		substitute module("eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api") with project(':groupcommunications-api')
+	}
+}*/
+
+dependencies {
+
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.8'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.11'
+
+	implementation "com.google.dagger:dagger:2.24"
+	implementation 'com.google.code.findbugs:jsr305:3.0.2'
+
+	implementation 'com.madgag.spongycastle:core:1.58.0.0'
+	implementation 'com.h2database:h2:1.4.199' // The last version that supports Java 1.6
+	implementation 'org.bitlet:weupnp:0.1.4'
+	implementation 'net.i2p.crypto:eddsa:0.2.0'
+
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.24'
+
+	signature 'org.codehaus.mojo.signature:java16:1.1@signature'
+}
