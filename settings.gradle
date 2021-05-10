@@ -1,3 +1,2 @@
 include ':groupcommunications-db'
-include ':groupcommunications-utils'
 rootProject.name = "groupcommunications-db"
