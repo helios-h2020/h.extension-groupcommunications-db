@@ -15,8 +15,8 @@ apply from: '../dagger.gradle'
 
 dependencies {
 
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.7'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.8'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.11'
 
 	implementation "com.google.dagger:dagger:2.24"
 	implementation 'com.google.code.findbugs:jsr305:3.0.2'
