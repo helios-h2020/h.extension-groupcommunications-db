@@ -376,10 +376,12 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
 
     @Override
     public void addContactGroup(Transaction transaction, Group group,
-                                ContactId contactId) throws DbException {
+                                   ContactId contactId) throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
-        db.addContactGroup(txn, group, contactId);
+        if (!db.containsContactGroup(txn, contactId, group.getContextId())) {
+            db.addContactGroup(txn, group, contactId);
+        }
     }
 
     @Override
