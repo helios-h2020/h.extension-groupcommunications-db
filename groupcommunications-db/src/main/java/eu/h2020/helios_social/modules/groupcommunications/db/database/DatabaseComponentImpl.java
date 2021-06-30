@@ -17,6 +17,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPending
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.PendingContextInvitationExistsException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAddedEvent;
@@ -376,7 +377,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
 
     @Override
     public void addContactGroup(Transaction transaction, Group group,
-                                   ContactId contactId) throws DbException {
+                                ContactId contactId) throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
         if (!db.containsContactGroup(txn, contactId, group.getContextId())) {
@@ -638,7 +639,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throws DbException {
         T txn = unbox(transaction);
         if (!db.containsGroup(txn, groupId))
-            throw new NoSuchContactException();
+            throw new NoSuchGroupException();
         return db.getGroupContext(txn, groupId);
     }
 
@@ -754,6 +755,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         if (!db.containsContact(txn, c))
             throw new NoSuchContactException();
+        db.removeContactGroups(txn, c);
         db.removeContact(txn, c);
         transaction.attach(new ContactRemovedEvent(c));
     }
@@ -934,6 +936,18 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchContextException();
         db.removeContext(txn, contextId);
         transaction.attach(new ContextRemovedEvent(contextId));
+    }
+
+    @Override
+    public void removeContact(Transaction transaction, String contactId, String contextId) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        if (!db.containsContact(txn, new ContactId(contactId)))
+            throw new NoSuchContactException();
+        db.removeContact(txn, contactId, contextId);
+        transaction.attach(new ContactRemovedFromContextEvent(contactId, contextId));
     }
 
     @Override
