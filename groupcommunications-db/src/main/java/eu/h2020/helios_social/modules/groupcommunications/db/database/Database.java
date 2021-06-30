@@ -242,10 +242,16 @@ interface Database<T> {
     void removeContact(T txn, ContactId c)
             throws DbException;
 
+    void removeContactGroups(T txn, ContactId c)
+            throws DbException;
+
     void removeEvent(T txn, String eventId)
             throws DbException;
 
     void removeContext(T txn, String contextId) throws DbException;
+
+    void removeContact(T txn, String contactId, String contextId)
+            throws DbException;
 
     void removeForumMember(T txn, String groupId, String fakeId)
             throws DbException;

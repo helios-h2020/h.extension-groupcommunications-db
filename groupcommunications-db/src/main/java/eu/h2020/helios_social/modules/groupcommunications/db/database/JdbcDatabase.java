@@ -74,7 +74,7 @@ import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogU
 abstract class JdbcDatabase implements Database<Connection> {
 
     // Package access for testing
-    static final int CODE_SCHEMA_VERSION = 4;
+    static final int CODE_SCHEMA_VERSION = 5;
 
     private static final String CREATE_SETTINGS =
             "CREATE TABLE settings"
@@ -229,6 +229,9 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " PRIMARY KEY (messageId),"
                     + " FOREIGN KEY (groupId)"
                     + " REFERENCES groups (groupId)"
+                    + " ON DELETE CASCADE,"
+                    + " FOREIGN KEY (contextId)"
+                    + " REFERENCES contexts (contextId)"
                     + " ON DELETE CASCADE)";
 
     private static final String CREATE_MESSAGE_METADATA =
@@ -392,7 +395,8 @@ abstract class JdbcDatabase implements Database<Connection> {
         return asList(
                 new Migration1_2(dbTypes),
                 new Migration2_3(dbTypes),
-                new Migration3_4(dbTypes)
+                new Migration3_4(dbTypes),
+                new Migration4_5()
         );
     }
 
@@ -1372,10 +1376,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                 HeliosEvent.Type type = HeliosEvent.Type.fromValue(rs.getInt(7));
                 long timestamp = rs.getLong(8);
                 events.add(new HeliosEvent(eventId, contextId, title, timestamp)
-                        .setDescription(desc)
-                        .setLocation(lat, lng)
-                        .setURL(url)
-                        .setEventType(type));
+                                   .setDescription(desc)
+                                   .setLocation(lat, lng)
+                                   .setURL(url)
+                                   .setEventType(type));
             }
             rs.close();
             ps.close();
@@ -1425,9 +1429,9 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) {
                 DBContext context =
                         new DBContext(rs.getString(1),
-                                rs.getString(2),
-                                rs.getInt(3),
-                                ContextType.fromValue(rs.getInt(4)));
+                                      rs.getString(2),
+                                      rs.getInt(3),
+                                      ContextType.fromValue(rs.getInt(4)));
                 contexts.add(context);
             }
             rs.close();
@@ -1455,8 +1459,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             DBContext context = null;
             while (rs.next()) context =
                     new DBContext(rs.getString(1), rs.getString(2),
-                            rs.getInt(3),
-                            ContextType.fromValue(rs.getInt(4)));
+                                  rs.getInt(3),
+                                  ContextType.fromValue(rs.getInt(4)));
             rs.close();
             ps.close();
             return context;
@@ -1483,7 +1487,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             Group group = null;
             while (rs.next()) group =
                     new Group(rs.getString(1), contextId,
-                            GroupType.PrivateConversation);
+                              GroupType.PrivateConversation);
             rs.close();
             ps.close();
             return group;
@@ -1508,7 +1512,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             Group group = null;
             while (rs.next())
                 group = new Group(groupId, rs.getString(1), rs.getBytes(2),
-                        GroupType.fromValue(rs.getInt(3)));
+                                  GroupType.fromValue(rs.getInt(3)));
             rs.close();
             ps.close();
             return group;
@@ -1536,8 +1540,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) {
                 groups.add(
                         new Group(rs.getString(1), contextId,
-                                rs.getBytes(2),
-                                GroupType.fromValue(rs.getInt(3))));
+                                  rs.getBytes(2),
+                                  GroupType.fromValue(rs.getInt(3))));
             }
             rs.close();
             ps.close();
@@ -1564,8 +1568,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) {
                 groups.add(
                         new Group(rs.getString(1), contextId,
-                                rs.getBytes(2),
-                                GroupType.fromValue(rs.getInt(3))));
+                                  rs.getBytes(2),
+                                  GroupType.fromValue(rs.getInt(3))));
             }
             rs.close();
             ps.close();
@@ -1594,7 +1598,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                 forumMembers.add(
                         new ForumMember(
                                 new PeerId(rs.getString(1),
-                                        rs.getString(2)),
+                                           rs.getString(2)),
                                 groupId,
                                 rs.getString(3),
                                 rs.getString(4),
@@ -1626,7 +1630,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) {
                 groups.add(
                         new Group(rs.getString(1), rs.getString(2),
-                                rs.getBytes(3), groupType));
+                                  rs.getBytes(3), groupType));
             }
             rs.close();
             ps.close();
@@ -1652,8 +1656,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) {
                 groups.add(
                         new Group(rs.getString(1), rs.getString(2),
-                                rs.getBytes(3),
-                                GroupType.fromValue(rs.getInt(4))));
+                                  rs.getBytes(3),
+                                  GroupType.fromValue(rs.getInt(4))));
             }
             rs.close();
             ps.close();
@@ -1896,6 +1900,23 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public void removeContactGroups(Connection txn, ContactId c)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "DELETE FROM groups WHERE contactId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, c.getId());
+            int affected = ps.executeUpdate();
+            if (affected < 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public void removeEvent(Connection txn, String eventId)
             throws DbException {
         PreparedStatement ps = null;
@@ -1922,6 +1943,24 @@ abstract class JdbcDatabase implements Database<Connection> {
             ps.setString(1, contextId);
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void removeContact(Connection txn, String contactId, String contextId)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "DELETE FROM groups WHERE contactId = ? AND contextId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, contactId);
+            ps.setString(2, contextId);
+            int affected = ps.executeUpdate();
+            if (affected < 1) throw new DbStateException();
             ps.close();
         } catch (SQLException e) {
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -2301,8 +2340,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             long timestamp = rs.getLong(4);
             byte[] profilePicture = rs.getBytes(5);
             return new PendingContact(pendingContactId, alias, profilePicture, type,
-                    message,
-                    timestamp);
+                                      message,
+                                      timestamp);
         } catch (SQLException e) {
             JdbcUtils.tryToClose(rs, LOG, WARNING);
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -2332,7 +2371,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                 byte[] profilePicture = rs.getBytes(6);
                 pendingContacts
                         .add(new PendingContact(id, alias, profilePicture, type, message,
-                                timestamp));
+                                                timestamp));
             }
             rs.close();
             s.close();
@@ -2393,10 +2432,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                 boolean incoming = rs.getBoolean(7);
                 contextInvites
                         .add(new ContextInvitation(contactId,
-                                pendingContextId,
-                                name,
-                                contextType, jsonContext, timestamp,
-                                incoming));
+                                                   pendingContextId,
+                                                   name,
+                                                   contextType, jsonContext, timestamp,
+                                                   incoming));
             }
             rs.close();
             s.close();
@@ -2456,8 +2495,8 @@ abstract class JdbcDatabase implements Database<Connection> {
                 long timestamp = rs.getLong(7);
                 boolean incoming = rs.getBoolean(8);
                 groupInvites.add(new GroupInvitation(contactId, contextId,
-                        pendingGroupId, name, groupInvitationType, json,
-                        timestamp, incoming));
+                                                     pendingGroupId, name, groupInvitationType, json,
+                                                     timestamp, incoming));
             }
             rs.close();
             s.close();
@@ -2520,10 +2559,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                 boolean incoming = rs.getBoolean(7);
                 contextInvites
                         .add(new ContextInvitation(contactId,
-                                pendingContextId,
-                                name,
-                                contextType, jsonContext, timestamp,
-                                incoming));
+                                                   pendingContextId,
+                                                   name,
+                                                   contextType, jsonContext, timestamp,
+                                                   incoming));
             }
             rs.close();
             ps.close();
@@ -2556,7 +2595,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             String mediaFileName = rs.getString(5);
             Message message =
                     new Message(messageId, groupId, timestamp, body,
-                            mediaFileName, type);
+                                mediaFileName, type);
             return message;
         } catch (SQLException e) {
             JdbcUtils.tryToClose(rs, LOG, WARNING);
@@ -2639,7 +2678,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                 boolean hasText = rs.getBoolean(7);
                 messageHeaders.add(
                         new MessageHeader(messageId, groupId, timestamp,
-                                messageState, incoming, favourite, msgType, hasText)
+                                          messageState, incoming, favourite, msgType, hasText)
                 );
             }
             rs.close();
@@ -2678,7 +2717,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             rs.close();
             ps.close();
             return new MessageHeader(messageId, groupId, timestamp,
-                    messageState, incoming, favourite, msgType, hasText);
+                                     messageState, incoming, favourite, msgType, hasText);
         } catch (SQLException e) {
             JdbcUtils.tryToClose(rs, LOG, WARNING);
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -2707,7 +2746,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                 long timestamp = rs.getLong(4);
                 Message.Type type = Message.Type.fromValue(rs.getInt(5));
                 favourites.add(new Message(messageId, groupId, timestamp,
-                        message_text, type)
+                                           message_text, type)
                 );
             }
             rs.close();
@@ -2865,8 +2904,8 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             Map<String, byte[]> added = removeOrUpdateMetadata(txn,
-                    contextId, meta,
-                    "contextMetadata", "contextId");
+                                                               contextId, meta,
+                                                               "contextMetadata", "contextId");
             if (added.isEmpty()) return;
             // Insert any keys that don't already exist
             String sql =
@@ -2919,7 +2958,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             Map<String, byte[]> added = removeOrUpdateInvertedIndexMetadata(txn,
-                    entityType.toString(), contextId, meta, "inverted_index", "entity");
+                                                                            entityType.toString(), contextId, meta, "inverted_index", "entity");
             if (added.isEmpty()) return;
             // Insert any keys that don't already exist
             String sql =
@@ -2952,7 +2991,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         ResultSet rs = null;
         try {
             Map<String, byte[]> added = removeOrUpdateMetadata(txn,
-                    messageId, meta, "messageMetadata", "messageId");
+                                                               messageId, meta, "messageMetadata", "messageId");
             if (added.isEmpty()) return;
             // Get the group ID and message state for the denormalised columns
             String sql = "SELECT groupId, state FROM messages"
@@ -2996,7 +3035,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             Map<String, byte[]> added = removeOrUpdateMetadata(txn,
-                    groupId, meta, "groupMetadata", "groupId");
+                                                               groupId, meta, "groupMetadata", "groupId");
             if (added.isEmpty()) return;
             // Insert any keys that don't already exist
             String contextId = getGroupContext(txn, groupId);
