@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.util.Collection;
 import java.util.Map;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
@@ -105,6 +106,12 @@ interface Database<T> {
     void addContact(T txn, Contact contact)
             throws DbException;
 
+    void addGroupMember(T txn, GroupMember groupMember)
+            throws DbException;
+
+    Collection<GroupMember> getGroupMembers(T txn, String groupId)
+        throws DbException;
+
     void addGroup(T txn, Group group, byte[] descriptor, GroupType groupType)
             throws DbException;
 
@@ -189,6 +196,9 @@ interface Database<T> {
     Collection<DBContext> getContexts(T txn)
             throws DbException;
 
+    Collection<DBContext> getContextsWithoutPrivateName(T txn)
+            throws DbException;
+
     DBContext getContext(T txn, String contextId)
             throws DbException;
 
@@ -249,6 +259,11 @@ interface Database<T> {
             throws DbException;
 
     void removeContext(T txn, String contextId) throws DbException;
+
+    void setContextPrivateName(T txn, String contextId, String name) throws DbException;
+
+    void addContextPrivateNameFeature(T txn) throws DbException;
+
 
     void removeContact(T txn, String contactId, String contextId)
             throws DbException;
@@ -393,4 +408,6 @@ interface Database<T> {
 
     void mergeSettings(T txn, Settings s, String namespace)
             throws DbException;
+
+    void setContextName(T txn, String contextId, String name) throws DbException;
 }

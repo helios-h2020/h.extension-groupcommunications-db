@@ -1,5 +1,6 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
@@ -74,7 +75,7 @@ import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogU
 abstract class JdbcDatabase implements Database<Connection> {
 
     // Package access for testing
-    static final int CODE_SCHEMA_VERSION = 5;
+    static final int CODE_SCHEMA_VERSION = 6;
 
     private static final String CREATE_SETTINGS =
             "CREATE TABLE settings"
@@ -112,6 +113,14 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " profilePicture BLOB,"
                     + " alias _STRING NOT NULL,"
                     + " PRIMARY KEY (contactId))";
+
+    private static final String CREATE_GROUP_MEMBERS =
+            "CREATE TABLE groupMembers"
+                    + " (peerId _STRING NOT NULL,"
+                    + " profilePicture BLOB,"
+                    + " alias _STRING NOT NULL,"
+                    + " groupId _STRING NOT NULL,"
+                    + " PRIMARY KEY (peerId, groupId))";
 
     private static final String CREATE_PENDING_CONTACTS =
             "CREATE TABLE pendingContacts"
@@ -158,9 +167,10 @@ abstract class JdbcDatabase implements Database<Connection> {
     private static final String CREATE_CONTEXTS =
             "CREATE TABLE contexts"
                     + " (contextId _STRING NOT NULL,"
-                    + " name _STRING NOT NULL,"
+                    + " name _STRING,"
                     + " color INT NOT NULL,"
                     + " type INT NOT NULL,"
+                    + " privateName _STRING NOT NULL,"
                     + " PRIMARY KEY (contextId))";
 
     private static final String CREATE_CONTEXTS_METADATA =
@@ -396,7 +406,8 @@ abstract class JdbcDatabase implements Database<Connection> {
                 new Migration1_2(dbTypes),
                 new Migration2_3(dbTypes),
                 new Migration3_4(dbTypes),
-                new Migration4_5()
+                new Migration4_5(),
+                new Migration5_6(dbTypes)
         );
     }
 
@@ -448,6 +459,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             s.executeUpdate(dbTypes.replaceTypes(CREATE_MESSAGE_METADATA));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_EVENTS));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_INVERTED_INDEX));
+            s.executeUpdate(dbTypes.replaceTypes(CREATE_GROUP_MEMBERS));
             s.close();
         } catch (SQLException e) {
             JdbcUtils.tryToClose(s, LOG, WARNING);
@@ -750,6 +762,33 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public void addGroupMember(Connection txn, GroupMember groupMember)
+            throws DbException {
+        PreparedStatement ps = null;
+        try {
+            // Create a new group member row
+            String sql = "INSERT INTO groupMembers"
+                    + " (peerId, alias, profilePicture, groupId)"
+                    + " VALUES (?, ?, ?, ?)";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, groupMember.getPeerId().getId());
+            ps.setString(2, groupMember.getAlias());
+            if (groupMember.getProfilePic() != null)
+                ps.setBytes(3, groupMember.getProfilePic());
+            else
+                ps.setNull(3, BINARY);
+            ps.setString(4,groupMember.getGroupId());
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+
+    @Override
     public void addGroup(Connection txn, Group group, byte[] descriptor,
                          GroupType groupType)
             throws DbException {
@@ -1030,13 +1069,14 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         try {
             String sql = "INSERT INTO contexts"
-                    + " (contextId, name, color, type)"
-                    + " VALUES (?, ?, ?, ?)";
+                    + " (contextId, name, color, type, privateName)"
+                    + " VALUES (?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, c.getId());
             ps.setString(2, c.getName());
             ps.setInt(3, c.getColor());
             ps.setInt(4, c.getContextType().getValue());
+            ps.setString(5, c.getPrivateName());
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
             ps.close();
@@ -1238,6 +1278,37 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public Collection<GroupMember> getGroupMembers(Connection txn, String groupId)
+            throws DbException {
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT peerId, profilePicture, alias"
+                    + " FROM groupMembers"
+                    + " WHERE groupId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, groupId);
+            rs = ps.executeQuery();
+            List<GroupMember> groupMembers = new ArrayList<>();
+            while (rs.next()) {
+                PeerId peerId = new PeerId(rs.getString(1));
+                byte[] profilePicture = rs.getBytes(2);
+                String alias = rs.getString(3);
+                groupMembers.add(new GroupMember(peerId, alias, profilePicture, groupId));
+            }
+            rs.close();
+            ps.close();
+            return groupMembers;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+
+    @Override
     public HeliosEvent getEvent(Connection txn, String eventId)
             throws DbException {
         PreparedStatement ps = null;
@@ -1416,7 +1487,7 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
-    public Collection<DBContext> getContexts(Connection txn)
+    public Collection<DBContext> getContextsWithoutPrivateName(Connection txn)
             throws DbException {
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1445,13 +1516,43 @@ abstract class JdbcDatabase implements Database<Connection> {
     }
 
     @Override
+    public Collection<DBContext> getContexts(Connection txn)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT contextId, name, color, type, privateName FROM contexts";
+            ps = txn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            List<DBContext> contexts = new ArrayList<>();
+            while (rs.next()) {
+                DBContext context =
+                        new DBContext(rs.getString(1),
+                                rs.getString(2),
+                                rs.getInt(3),
+                                ContextType.fromValue(rs.getInt(4)),
+                                rs.getString(5));
+                contexts.add(context);
+            }
+            rs.close();
+            ps.close();
+            return contexts;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public DBContext getContext(Connection txn, String contextId)
             throws DbException {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
             String sql =
-                    "SELECT contextId, name, color, type FROM contexts " +
+                    "SELECT contextId, name, color, type, privateName FROM contexts " +
                             "WHERE contextId = ?";
             ps = txn.prepareStatement(sql);
             ps.setString(1, contextId);
@@ -1460,7 +1561,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             while (rs.next()) context =
                     new DBContext(rs.getString(1), rs.getString(2),
                                   rs.getInt(3),
-                                  ContextType.fromValue(rs.getInt(4)));
+                                  ContextType.fromValue(rs.getInt(4)),
+                                  rs.getString(5));
             rs.close();
             ps.close();
             return context;
@@ -1926,6 +2028,40 @@ abstract class JdbcDatabase implements Database<Connection> {
             ps.setString(1, eventId);
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void setContextPrivateName(Connection txn, String contextId, String name) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "UPDATE contexts SET privateName = ? WHERE contextId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, name);
+            ps.setString(2, contextId);
+
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void addContextPrivateNameFeature(Connection txn) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "ALTER TABLE contexts ADD COLUMN privateName VARCHAR NOT NULL DEFAULT '' ";
+            ps = txn.prepareStatement(sql);
+
+            int affected = ps.executeUpdate();
+            if (affected < 1) throw new DbStateException();
             ps.close();
         } catch (SQLException e) {
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -3238,6 +3374,24 @@ abstract class JdbcDatabase implements Database<Connection> {
                 throw new DbStateException();
             for (int rows : batchAffected)
                 if (rows != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void setContextName(Connection txn, String contextId, String name) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "UPDATE contexts SET name = ? WHERE contextId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, name);
+            ps.setString(2, contextId);
+
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
             ps.close();
         } catch (SQLException e) {
             JdbcUtils.tryToClose(ps, LOG, WARNING);

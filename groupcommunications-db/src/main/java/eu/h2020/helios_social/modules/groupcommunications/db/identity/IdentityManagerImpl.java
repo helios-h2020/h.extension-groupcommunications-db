@@ -83,7 +83,7 @@ class IdentityManagerImpl implements IdentityManager,
 			LOG.info("Identity stored");
 			db.addContext(txn,
 					new DBContext("All", "All", Integer.parseInt("222E3C", 16),
-							ContextType.GENERAL));
+							ContextType.GENERAL, "All"));
 			LOG.info("Default context stored");
 		}
 	}

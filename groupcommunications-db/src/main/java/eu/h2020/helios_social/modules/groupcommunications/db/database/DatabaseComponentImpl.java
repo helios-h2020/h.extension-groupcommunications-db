@@ -1,5 +1,6 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction;
@@ -20,9 +21,11 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Conta
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextRenamedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMemberAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactRemovedEvent;
@@ -66,6 +69,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingCon
 import eu.h2020.helios_social.modules.groupcommunications.api.context.DBContext;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.sharing.GroupInvitation;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.Profile;
+import jdk.internal.jline.internal.Log;
 
 import java.util.Collection;
 import java.util.Map;
@@ -295,6 +299,22 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         db.addContact(txn, contact);
         transaction.attach(new ContactAddedEvent(contact));
+    }
+
+    @Override
+    public void addGroupMember(Transaction transaction, GroupMember groupMember)
+            throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        db.addGroupMember(txn, groupMember);
+        transaction.attach(new GroupMemberAddedEvent(groupMember));
+    }
+
+    @Override
+    public Collection<GroupMember> getGroupMembers(Transaction transaction, String groupid)
+            throws DbException {
+        T txn = unbox(transaction);
+        return db.getGroupMembers(txn, groupid);
     }
 
     @Override
@@ -855,6 +875,13 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public Collection<DBContext> getContextsWithoutPrivateNames(Transaction transaction)
+            throws DbException {
+        T txn = unbox(transaction);
+        return db.getContextsWithoutPrivateName(txn);
+    }
+
+    @Override
     public DBContext getContext(Transaction transaction,
                                 String contextId)
             throws DbException {
@@ -936,6 +963,35 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchContextException();
         db.removeContext(txn, contextId);
         transaction.attach(new ContextRemovedEvent(contextId));
+    }
+
+    @Override
+    public void setContextPrivateName(Transaction transaction, String contextId, String name) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        db.setContextPrivateName(txn,contextId,name);
+        transaction.attach(new ContextRenamedEvent(contextId,name));
+
+    }
+
+    @Override
+    public void addContextPrivateNameFeature(Transaction transaction) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        db.addContextPrivateNameFeature(txn);
+
+    }
+
+    @Override
+    public void setContextName(Transaction transaction, String contextId, String name) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        db.setContextName(txn,contextId,name);
+        transaction.attach(new ContextRenamedEvent(contextId,name));
     }
 
     @Override
