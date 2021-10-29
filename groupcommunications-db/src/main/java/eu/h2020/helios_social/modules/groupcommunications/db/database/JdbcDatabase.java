@@ -1,7 +1,13 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
 
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.sharing.ForumAccessRequest;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
+import eu.h2020.helios_social.modules.groupcommunications.api.sharing.Request;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.RSAKeyPair;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.RSAKeyUtils;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooOldException;
@@ -34,6 +40,14 @@ import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.shari
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.Profile;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.ProfileBuilder;
 
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -75,7 +89,7 @@ import static eu.h2020.helios_social.modules.groupcommunications_utils.util.LogU
 abstract class JdbcDatabase implements Database<Connection> {
 
     // Package access for testing
-    static final int CODE_SCHEMA_VERSION = 6;
+    static final int CODE_SCHEMA_VERSION = 9;
 
     private static final String CREATE_SETTINGS =
             "CREATE TABLE settings"
@@ -111,6 +125,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             "CREATE TABLE contacts"
                     + " (contactId _STRING NOT NULL,"
                     + " profilePicture BLOB,"
+                    + " publicKey BLOB,"
                     + " alias _STRING NOT NULL,"
                     + " PRIMARY KEY (contactId))";
 
@@ -120,7 +135,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " profilePicture BLOB,"
                     + " alias _STRING NOT NULL,"
                     + " groupId _STRING NOT NULL,"
-                    + " PRIMARY KEY (peerId, groupId))";
+                    + " PRIMARY KEY (peerId, groupId),"
+                    + " FOREIGN KEY (groupId)"
+                    + " REFERENCES groups (groupId)"
+                    + " ON DELETE CASCADE)";
 
     private static final String CREATE_PENDING_CONTACTS =
             "CREATE TABLE pendingContacts"
@@ -130,6 +148,7 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " message _STRING,"
                     + " type INT NOT NULL,"
                     + " timestamp BIGINT NOT NULL,"
+                    + " publicKey BLOB,"
                     + " PRIMARY KEY (pendingContactId))";
 
     private static final String CREATE_CONTEXT_INVITES =
@@ -160,6 +179,21 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " FOREIGN KEY (contactId)"
                     + " REFERENCES contacts (contactId)"
                     + " ON DELETE CASCADE,"
+                    + " FOREIGN KEY (contextId)"
+                    + " REFERENCES contexts (contextId)"
+                    + " ON DELETE CASCADE)";
+
+    private static final String CREATE_GROUP_ACCESS_REQUESTS =
+            "CREATE TABLE groupAccessRequests"
+                    + " (contactId _STRING NOT NULL,"
+                    + " contextId _STRING NOT NULL,"
+                    + " pendingGroupId _STRING NOT NULL,"
+                    + " name _STRING NOT NULL,"
+                    + " type INT NOT NULL,"
+                    + " incoming BOOLEAN NOT NULL,"
+                    + " timestamp BIGINT NOT NULL,"
+                    + " peerName _STRING NOT NULL,"
+                    + " PRIMARY KEY (contactId, pendingGroupId),"
                     + " FOREIGN KEY (contextId)"
                     + " REFERENCES contexts (contextId)"
                     + " ON DELETE CASCADE)";
@@ -285,6 +319,11 @@ abstract class JdbcDatabase implements Database<Connection> {
                     + " REFERENCES contexts (contextId)"
                     + " ON DELETE CASCADE)";
 
+    private static final String CREATE_CRYPTO_KEYS =
+            "CREATE TABLE crypto_keys"
+                    + " (privateKey BLOB,"
+                    + " publicKey BLOB)";
+
     private static final Logger LOG =
             getLogger(JdbcDatabase.class.getName());
 
@@ -407,7 +446,10 @@ abstract class JdbcDatabase implements Database<Connection> {
                 new Migration2_3(dbTypes),
                 new Migration3_4(dbTypes),
                 new Migration4_5(),
-                new Migration5_6(dbTypes)
+                new Migration5_6(dbTypes),
+                new Migration6_7(dbTypes),
+                new Migration7_8(),
+                new Migration8_9(dbTypes)
         );
     }
 
@@ -460,6 +502,8 @@ abstract class JdbcDatabase implements Database<Connection> {
             s.executeUpdate(dbTypes.replaceTypes(CREATE_EVENTS));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_INVERTED_INDEX));
             s.executeUpdate(dbTypes.replaceTypes(CREATE_GROUP_MEMBERS));
+            s.executeUpdate(dbTypes.replaceTypes(CREATE_GROUP_ACCESS_REQUESTS));
+            s.execute(dbTypes.replaceTypes(CREATE_CRYPTO_KEYS));
             s.close();
         } catch (SQLException e) {
             JdbcUtils.tryToClose(s, LOG, WARNING);
@@ -482,6 +526,7 @@ abstract class JdbcDatabase implements Database<Connection> {
     public Connection startTransaction() throws DbException {
         Connection txn;
         connectionsLock.lock();
+        closed=false;
         try {
             if (closed) throw new DbClosedException();
             txn = connections.poll();
@@ -743,8 +788,8 @@ abstract class JdbcDatabase implements Database<Connection> {
         try {
             // Create a contact row
             String sql = "INSERT INTO contacts"
-                    + " (contactId, alias, profilePicture)"
-                    + " VALUES (?, ?, ?)";
+                    + " (contactId, alias, profilePicture, publicKey)"
+                    + " VALUES (?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, contact.getId().getId());
             ps.setString(2, contact.getAlias());
@@ -752,6 +797,8 @@ abstract class JdbcDatabase implements Database<Connection> {
                 ps.setBytes(3, contact.getProfilePicture());
             else
                 ps.setNull(3, BINARY);
+
+            ps.setBytes(4,contact.getPublicKey().getEncoded());
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
             ps.close();
@@ -787,6 +834,24 @@ abstract class JdbcDatabase implements Database<Connection> {
         }
     }
 
+    @Override
+    public void removeGroupMember(Connection txn, GroupMember groupMember) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql =
+                    "DELETE FROM groupMembers WHERE peerId = ? AND groupId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, groupMember.getPeerId().getId());
+            ps.setString(2, groupMember.getGroupId());
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            else LOG.info("groupMemberDeleted");
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
 
     @Override
     public void addGroup(Connection txn, Group group, byte[] descriptor,
@@ -1258,7 +1323,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            String sql = "SELECT alias, profilePicture"
+            String sql = "SELECT alias, profilePicture, publicKey"
                     + " FROM contacts"
                     + " WHERE contactId = ?";
             ps = txn.prepareStatement(sql);
@@ -1267,9 +1332,15 @@ abstract class JdbcDatabase implements Database<Connection> {
             if (!rs.next()) throw new DbStateException();
             String alias = rs.getString(1);
             byte[] profilePic = rs.getBytes(2);
+            byte[] publicKeyBytes = rs.getBytes(3);
             rs.close();
             ps.close();
-            return new Contact(cid, alias, profilePic);
+            if (publicKeyBytes==null){
+                return new Contact(cid, alias, profilePic, null);
+            }
+            else {
+                return new Contact(cid, alias, profilePic, RSAKeyUtils.getPublicKeyFromBytes(publicKeyBytes));
+            }
         } catch (SQLException e) {
             JdbcUtils.tryToClose(rs, LOG, WARNING);
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -1376,7 +1447,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         Statement s = null;
         ResultSet rs = null;
         try {
-            String sql = "SELECT contactId, profilePicture, alias"
+            String sql = "SELECT contactId, profilePicture, alias, publicKey"
                     + " FROM contacts";
             s = txn.createStatement();
             rs = s.executeQuery(sql);
@@ -1385,7 +1456,14 @@ abstract class JdbcDatabase implements Database<Connection> {
                 ContactId contactId = new ContactId(rs.getString(1));
                 byte[] profilePicture = rs.getBytes(2);
                 String alias = rs.getString(3);
-                contacts.add(new Contact(contactId, alias, profilePicture));
+                byte[] publicKeyBytes = rs.getBytes(4);
+                if (publicKeyBytes==null){
+                    contacts.add(new Contact(contactId, alias, profilePicture, null));
+
+                } else{
+                    contacts.add(new Contact(contactId, alias, profilePicture, RSAKeyUtils.getPublicKeyFromBytes(publicKeyBytes)));
+
+                }
             }
             rs.close();
             s.close();
@@ -1486,34 +1564,6 @@ abstract class JdbcDatabase implements Database<Connection> {
         }
     }
 
-    @Override
-    public Collection<DBContext> getContextsWithoutPrivateName(Connection txn)
-            throws DbException {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            String sql =
-                    "SELECT contextId, name, color, type FROM contexts";
-            ps = txn.prepareStatement(sql);
-            rs = ps.executeQuery();
-            List<DBContext> contexts = new ArrayList<>();
-            while (rs.next()) {
-                DBContext context =
-                        new DBContext(rs.getString(1),
-                                      rs.getString(2),
-                                      rs.getInt(3),
-                                      ContextType.fromValue(rs.getInt(4)));
-                contexts.add(context);
-            }
-            rs.close();
-            ps.close();
-            return contexts;
-        } catch (SQLException e) {
-            JdbcUtils.tryToClose(rs, LOG, WARNING);
-            JdbcUtils.tryToClose(ps, LOG, WARNING);
-            throw new DbException(e);
-        }
-    }
 
     @Override
     public Collection<DBContext> getContexts(Connection txn)
@@ -2053,21 +2103,6 @@ abstract class JdbcDatabase implements Database<Connection> {
         }
     }
 
-    @Override
-    public void addContextPrivateNameFeature(Connection txn) throws DbException {
-        PreparedStatement ps = null;
-        try {
-            String sql = "ALTER TABLE contexts ADD COLUMN privateName VARCHAR NOT NULL DEFAULT '' ";
-            ps = txn.prepareStatement(sql);
-
-            int affected = ps.executeUpdate();
-            if (affected < 1) throw new DbStateException();
-            ps.close();
-        } catch (SQLException e) {
-            JdbcUtils.tryToClose(ps, LOG, WARNING);
-            throw new DbException(e);
-        }
-    }
 
     @Override
     public void removeContext(Connection txn, String contextId)
@@ -2200,10 +2235,11 @@ abstract class JdbcDatabase implements Database<Connection> {
     public void addPendingContact(Connection txn, PendingContact p)
             throws DbException {
         PreparedStatement ps = null;
+        LOG.info("DB: trying to add pending contact");
         try {
             String sql = "INSERT INTO pendingContacts (pendingContactId,"
-                    + " alias, message, type, timestamp, profilePicture)"
-                    + " VALUES (?, ?, ?, ?, ?, ?)";
+                    + " alias, message, type, timestamp, profilePicture, publicKey)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?)";
             ps = txn.prepareStatement(sql);
             ps.setString(1, p.getId().getId());
             ps.setString(2, p.getAlias());
@@ -2214,6 +2250,17 @@ abstract class JdbcDatabase implements Database<Connection> {
                 ps.setBytes(6, p.getProfilePicture());
             else
                 ps.setNull(6, BINARY);
+            LOG.info("DB: before assign public key");
+            if (p.getPublicKey() != null) {
+                ps.setBytes(7, p.getPublicKey().getEncoded());
+                LOG.info("DB: public key set by getEncoded");
+            }
+            else{
+                ps.setNull(7, BINARY);
+                LOG.info("DB: public key set null");
+            }
+
+
             int affected = ps.executeUpdate();
             if (affected != 1) throw new DbStateException();
             ps.close();
@@ -2321,7 +2368,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             ps.setString(1, pendingContextId);
             rs = ps.executeQuery();
             boolean found = rs.next();
-            if (rs.next()) throw new DbStateException();
+            //if (rs.next()) throw new DbStateException();
             rs.close();
             ps.close();
             return found;
@@ -2345,7 +2392,7 @@ abstract class JdbcDatabase implements Database<Connection> {
             ps.setString(1, pendingGroupId);
             rs = ps.executeQuery();
             boolean found = rs.next();
-            if (rs.next()) throw new DbStateException();
+            //if (rs.next()) throw new DbStateException();
             rs.close();
             ps.close();
             return found;
@@ -2462,7 +2509,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            String sql = "SELECT alias, type, message, timestamp, profilePicture"
+            String sql = "SELECT alias, type, message, timestamp, profilePicture, publicKey"
                     + " FROM pendingContacts"
                     + " WHERE pendingContactId = ?";
             ps = txn.prepareStatement(sql);
@@ -2475,9 +2522,18 @@ abstract class JdbcDatabase implements Database<Connection> {
             String message = rs.getString(3);
             long timestamp = rs.getLong(4);
             byte[] profilePicture = rs.getBytes(5);
-            return new PendingContact(pendingContactId, alias, profilePicture, type,
-                                      message,
-                                      timestamp);
+            byte[] publicKeyBytes = rs.getBytes(6);
+            if (publicKeyBytes==null) {
+                return new PendingContact(pendingContactId, alias, profilePicture, type,
+                        message,
+                        timestamp, null);
+            }
+            else{
+                return new PendingContact(pendingContactId, alias, profilePicture, type,
+                        message,
+                        timestamp, RSAKeyUtils.getPublicKeyFromBytes(publicKeyBytes));
+            }
+
         } catch (SQLException e) {
             JdbcUtils.tryToClose(rs, LOG, WARNING);
             JdbcUtils.tryToClose(ps, LOG, WARNING);
@@ -2492,7 +2548,7 @@ abstract class JdbcDatabase implements Database<Connection> {
         ResultSet rs = null;
         try {
             String sql =
-                    "SELECT pendingContactId, alias, type, timestamp, message, profilePicture"
+                    "SELECT pendingContactId, alias, type, timestamp, message, profilePicture, publicKey"
                             + " FROM pendingContacts";
             s = txn.createStatement();
             rs = s.executeQuery(sql);
@@ -2505,9 +2561,16 @@ abstract class JdbcDatabase implements Database<Connection> {
                 long timestamp = rs.getLong(4);
                 String message = rs.getString(5);
                 byte[] profilePicture = rs.getBytes(6);
-                pendingContacts
-                        .add(new PendingContact(id, alias, profilePicture, type, message,
-                                                timestamp));
+                byte[] publicKeyBytes = rs.getBytes(7);
+                if (publicKeyBytes!=null) {
+                    pendingContacts
+                            .add(new PendingContact(id, alias, profilePicture, type, message,
+                                    timestamp, RSAKeyUtils.getPublicKeyFromBytes(publicKeyBytes)));
+                } else {
+                    pendingContacts
+                            .add(new PendingContact(id, alias, profilePicture, type, message,
+                                    timestamp, null));
+                }
             }
             rs.close();
             s.close();
@@ -3394,6 +3457,251 @@ abstract class JdbcDatabase implements Database<Connection> {
             if (affected != 1) throw new DbStateException();
             ps.close();
         } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void addGroupAccessRequest(Connection txn, ForumAccessRequest forumAccessRequest) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql =
+                    "INSERT INTO groupAccessRequests (contactId, contextId, pendingGroupId, name,"
+                            + " type, incoming, timestamp, peerName)"
+                            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, forumAccessRequest.getContactId().getId());
+            ps.setString(2, forumAccessRequest.getContextId());
+            ps.setString(3, forumAccessRequest.getGroupId());
+            ps.setString(4, forumAccessRequest.getName());
+            ps.setInt(5, forumAccessRequest.getTypeValue());
+            ps.setBoolean(6, forumAccessRequest.isIncoming());
+            ps.setLong(7, forumAccessRequest.getTimestamp());
+            ps.setString(8,forumAccessRequest.getPeerName());
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public boolean containsGroupAccessRequest(Connection txn, ContactId contactId, String pendingGroupId) throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT NULL FROM groupAccessRequests"
+                    + " WHERE pendingGroupId = ? AND contactId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, pendingGroupId);
+            ps.setString(2, contactId.getId());
+            rs = ps.executeQuery();
+            boolean found = rs.next();
+            if (rs.next()) throw new DbStateException();
+            rs.close();
+            ps.close();
+            return found;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public Collection<ForumAccessRequest> getGroupAccessRequests(Connection txn) throws DbException {
+        Statement s = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT pendingGroupId, contextId, contactId, name, type, timestamp, " +
+                            "incoming, peerName"
+                            + " FROM groupAccessRequests";
+            s = txn.createStatement();
+            rs = s.executeQuery(sql);
+            List<ForumAccessRequest> forumAccessRequests = new ArrayList<>();
+            while (rs.next()) {
+                String pendingGroupId = rs.getString(1);
+                String contextId = rs.getString(2);
+                ContactId contactId = new ContactId(rs.getString(3));
+                String name = rs.getString(4);
+                Request.Type type =
+                        new Request(null,rs.getInt(5)).getRequestType();
+                long timestamp = rs.getLong(6);
+                boolean incoming = rs.getBoolean(7);
+                String peerName = rs.getString(8);
+                forumAccessRequests.add(new ForumAccessRequest(contactId, contextId,
+                        pendingGroupId, name, type,
+                        timestamp, incoming, peerName));
+            }
+            rs.close();
+            s.close();
+            return forumAccessRequests;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(s, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public int countGroupAccessRequests(Connection txn, boolean isIncoming) throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT COUNT(*) AS total"
+                            + " FROM groupAccessRequests WHERE incoming = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setBoolean(1, isIncoming);
+            rs = ps.executeQuery();
+            int count = 0;
+            if (rs.next()) count = rs.getInt("total");
+            rs.close();
+            ps.close();
+            return count;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void removeGroupAccessRequest(Connection txn, ContactId contactId, String pendingGroupId) throws DbException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "DELETE FROM groupAccessRequests"
+                    + " WHERE pendingGroupId = ? AND contactId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, pendingGroupId);
+            ps.setString(2, contactId.getId());
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public boolean containsGroupAccessRequestByGroupId(Connection txn,
+                                        String pendingGroupId)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT NULL FROM groupAccessRequests"
+                    + " WHERE pendingGroupId = ?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, pendingGroupId);
+            rs = ps.executeQuery();
+            boolean found = rs.next();
+            // if (rs.next()) throw new DbStateException();
+            rs.close();
+            ps.close();
+            return found;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public int countUnreadMessagesInContext(Connection txn, String contextId)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+//            String sql = "SELECT state"
+//                    + " FROM messages, incoming"
+//                    + " WHERE contextId = ?";
+            String sql = "SELECT COUNT(*) AS total"
+                    + " FROM messages WHERE contextId = ? AND incoming = ? AND state<>?";
+            ps = txn.prepareStatement(sql);
+            ps.setString(1, contextId);
+            ps.setBoolean(2, true);
+            // state 3 == SEEN
+            ps.setInt(3, 3);
+            rs = ps.executeQuery();
+            int unreadCounter = 0;
+            if (rs.next()) unreadCounter = rs.getInt("total");
+            rs.close();
+            ps.close();
+            return unreadCounter;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public void addCryptoKeys(Connection txn, KeyPair keyPair) throws DbException{
+        PreparedStatement ps = null;
+        try {
+            String sql = "INSERT INTO crypto_keys"
+                    + " (privateKey, publicKey)"
+                    + " VALUES (?, ?)";
+            ps = txn.prepareStatement(sql);
+            RSAKeyPair rsaKeyPair = new RSAKeyPair(keyPair);
+            ps.setBytes(1, rsaKeyPair.getPrivateKeyBytes());
+            ps.setBytes(2, rsaKeyPair.getPublicKeyBytes());
+            int affected = ps.executeUpdate();
+            if (affected != 1) throw new DbStateException();
+            ps.close();
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public KeyPair getCryptoKeys(Connection txn) throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql =
+                    "SELECT privateKey, publicKey"
+                            + " FROM crypto_keys";
+            ps = txn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            if (!rs.next()) throw new DbStateException();
+            byte[] privateKeyBytes = rs.getBytes(1);
+            byte[] publicKeyBytes = rs.getBytes(2);
+            rs.close();
+            ps.close();
+            RSAKeyPair rsaKeyPair = new RSAKeyPair(privateKeyBytes,publicKeyBytes);
+            return rsaKeyPair.getKeyPair();
+
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
+            JdbcUtils.tryToClose(ps, LOG, WARNING);
+            throw new DbException(e);
+        }
+    }
+
+    @Override
+    public boolean containsCryptoKeyPair(Connection txn)
+            throws DbException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            String sql = "SELECT NULL FROM crypto_keys";
+            ps = txn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            boolean found = rs.next();
+            if (rs.next()) throw new DbStateException();
+            rs.close();
+            ps.close();
+            return found;
+        } catch (SQLException e) {
+            JdbcUtils.tryToClose(rs, LOG, WARNING);
             JdbcUtils.tryToClose(ps, LOG, WARNING);
             throw new DbException(e);
         }

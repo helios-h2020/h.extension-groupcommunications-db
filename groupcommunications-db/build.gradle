@@ -22,8 +22,12 @@ dependencies {
 
     implementation "com.google.dagger:dagger:2.24"
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation 'com.google.code.gson:gson:2.8.7'
 
     implementation 'com.madgag.spongycastle:core:1.58.0.0'
+    implementation 'com.madgag.spongycastle:bcpg-jdk15on:1.58.0.0'
+    implementation 'com.madgag.spongycastle:bcpkix-jdk15on:1.58.0.0'
+    implementation 'com.madgag.spongycastle:prov:1.58.0.0'
     implementation 'com.h2database:h2:1.4.199' // The last version that supports Java 1.6
     implementation 'org.bitlet:weupnp:0.1.4'
     implementation 'net.i2p.crypto:eddsa:0.2.0'

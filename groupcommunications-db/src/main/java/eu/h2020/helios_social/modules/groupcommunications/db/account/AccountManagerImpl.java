@@ -48,7 +48,7 @@ public class AccountManagerImpl implements AccountManager {
 	private final File dbKeyFile, dbKeyBackupFile;
 
 	protected final Object stateChangeLock = new Object();
-
+	protected String userPassword;
 	@Nullable
 	private volatile SecretKey databaseKey = null;
 
@@ -201,7 +201,9 @@ public class AccountManagerImpl implements AccountManager {
 	@Override
 	public void signIn(String password) throws DecryptionException {
 		synchronized (stateChangeLock) {
+			userPassword = password;
 			databaseKey = loadAndDecryptDatabaseKey(password);
+			LOG.info("databasekey"+databaseKey);
 		}
 	}
 
@@ -235,5 +237,15 @@ public class AccountManagerImpl implements AccountManager {
 			SecretKey key = loadAndDecryptDatabaseKey(oldPassword);
 			encryptAndStoreDatabaseKey(key, newPassword);
 		}
+	}
+
+	@Override
+	public String getUserPassword() {
+		return userPassword;
+	}
+
+	@Override
+	public void setUserPassword(String password) {
+		userPassword = password;
 	}
 }

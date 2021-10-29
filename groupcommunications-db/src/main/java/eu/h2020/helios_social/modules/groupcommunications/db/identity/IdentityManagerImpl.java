@@ -1,5 +1,7 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.identity;
 
+import java.security.KeyPair;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.HeliosCryptoManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.CryptoComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.ContextType;
@@ -12,6 +14,9 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.Lifecy
 import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 
+
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -77,6 +82,9 @@ class IdentityManagerImpl implements IdentityManager,
 	@Override
 	public void onDatabaseOpened(Transaction txn) throws DbException {
 		Identity cached = getCachedIdentity(txn);
+		HeliosCryptoManager manager = HeliosCryptoManager.getInstance();
+		if (!db.containsCryptoKeys(txn))
+			db.addCryptoKeys(txn,manager.generateRSAKeyPair());
 		if (shouldStoreIdentity) {
 			// The identity was registered at startup - store it
 			db.addIdentity(txn, cached);
@@ -158,5 +166,31 @@ class IdentityManagerImpl implements IdentityManager,
 	public String getHeliosLink() {
 		Identity i = getIdentity();
 		return LINK_PREFIX + i.getNetworkId();
+	}
+
+	@Override
+	public PrivateKey getPrivateKey() throws DbException {
+		Transaction txn = db.startTransaction(true);
+		KeyPair keyPair = null;
+		try {
+			keyPair = db.getCryptoKeys(txn);
+			db.commitTransaction(txn);
+		} finally {
+			db.endTransaction(txn);
+		}
+		return keyPair.getPrivate();
+	}
+
+	@Override
+	public PublicKey getPublicKey() throws DbException {
+		Transaction txn = db.startTransaction(true);
+		KeyPair keyPair = null;
+		try {
+			keyPair = db.getCryptoKeys(txn);
+			db.commitTransaction(txn);
+		} finally {
+			db.endTransaction(txn);
+		}
+		return keyPair.getPublic();
 	}
 }
