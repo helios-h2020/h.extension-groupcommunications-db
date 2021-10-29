@@ -1,6 +1,10 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
+import java.security.KeyPair;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.sharing.ForumAccessRequest;
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
+
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.CommitAction.Visitor;
@@ -8,6 +12,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.db.ContactExists
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.ContextExistsException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DbCallable;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.GroupAccessRequestExistsException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.GroupInvitationExistsException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchGroupException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchHeliosEventException;
@@ -17,11 +22,15 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchPending
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.PendingContextInvitationExistsException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextRenamedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAccessRequestAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMemberAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactAddedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactRemovedEvent;
@@ -297,6 +306,29 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public void addGroupMember(Transaction transaction, GroupMember groupMember)
+            throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        db.addGroupMember(txn, groupMember);
+        transaction.attach(new GroupMemberAddedEvent(groupMember));
+    }
+
+    @Override
+    public void removeGroupMember(Transaction transaction, GroupMember groupMember) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        db.removeGroupMember(txn, groupMember);
+    }
+
+    @Override
+    public Collection<GroupMember> getGroupMembers(Transaction transaction, String groupid)
+            throws DbException {
+        T txn = unbox(transaction);
+        return db.getGroupMembers(txn, groupid);
+    }
+
+    @Override
     public void addEvent(Transaction transaction, HeliosEvent event)
             throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
@@ -350,8 +382,11 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throw new NoSuchContextException();
         if (db.containsPendingGroupInvitation(txn,
                                               groupInvitations.getContactId(),
-                                              groupInvitations.getGroupId()))
+                                              groupInvitations.getGroupId()) ||
+            db.containsGroupAccessRequest(txn,groupInvitations.getContactId(),
+                    groupInvitations.getGroupId()))
             throw new GroupInvitationExistsException(groupInvitations);
+
         db.addGroupInvitation(txn, groupInvitations);
         transaction.attach(new GroupInvitationAddedEvent(groupInvitations));
     }
@@ -379,7 +414,9 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
                                 ContactId contactId) throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
-        db.addContactGroup(txn, group, contactId);
+        if (!db.containsContactGroup(txn, contactId, group.getContextId())) {
+            db.addContactGroup(txn, group, contactId);
+        }
     }
 
     @Override
@@ -636,7 +673,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             throws DbException {
         T txn = unbox(transaction);
         if (!db.containsGroup(txn, groupId))
-            throw new NoSuchContactException();
+            throw new NoSuchGroupException();
         return db.getGroupContext(txn, groupId);
     }
 
@@ -752,6 +789,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         if (!db.containsContact(txn, c))
             throw new NoSuchContactException();
+        db.removeContactGroups(txn, c);
         db.removeContact(txn, c);
         transaction.attach(new ContactRemovedEvent(c));
     }
@@ -774,6 +812,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         if (!db.containsContext(txn, context.getId())) {
             db.addContext(txn, context);
+            logDuration(LOG, "Context added event attached", 1);
             transaction.attach(new ContextAddedEvent(context));
         }
     }
@@ -849,6 +888,7 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         T txn = unbox(transaction);
         return db.getContexts(txn);
     }
+
 
     @Override
     public DBContext getContext(Transaction transaction,
@@ -935,6 +975,41 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     }
 
     @Override
+    public void setContextPrivateName(Transaction transaction, String contextId, String name) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        db.setContextPrivateName(txn,contextId,name);
+        transaction.attach(new ContextRenamedEvent(contextId,name));
+
+    }
+
+
+
+    @Override
+    public void setContextName(Transaction transaction, String contextId, String name) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        db.setContextName(txn,contextId,name);
+        transaction.attach(new ContextRenamedEvent(contextId,name));
+    }
+
+    @Override
+    public void removeContact(Transaction transaction, String contactId, String contextId) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsContext(txn, contextId))
+            throw new NoSuchContextException();
+        if (!db.containsContact(txn, new ContactId(contactId)))
+            throw new NoSuchContactException();
+        db.removeContact(txn, contactId, contextId);
+        transaction.attach(new ContactRemovedFromContextEvent(contactId, contextId));
+    }
+
+    @Override
     public void removePendingContact(Transaction transaction,
                                      ContactId pendingContactId) throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
@@ -948,6 +1023,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
     @Override
     public void removePendingContext(Transaction transaction,
                                      String pendingContextId) throws DbException {
+        LOG.info("removePendingContext: "+pendingContextId);
+
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
         if (!db.containsPendingContext(txn, pendingContextId))
@@ -975,6 +1052,8 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
         if (!db.containsPendingContextInvitation(txn, contactId,
                                                  pendingContextId))
             throw new NoSuchPendingContextException();
+        LOG.info("removeContextInvitation: "+ pendingContextId);
+
         db.removeContextInvitation(txn, contactId, pendingContextId);
         transaction.attach(new ContextInvitationRemovedEvent(contactId,
                                                              pendingContextId));
@@ -985,6 +1064,9 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
                                       ContactId contactId, String pendingGroupId) throws DbException {
         if (transaction.isReadOnly()) throw new IllegalArgumentException();
         T txn = unbox(transaction);
+        if (!db.containsPendingGroupInvitation(txn, contactId, pendingGroupId)){
+            return;
+        }
         if (!db.containsPendingGroup(txn, pendingGroupId))
             throw new NoSuchPendingGroupException();
         db.removeGroupInvitation(txn, contactId, pendingGroupId);
@@ -1056,6 +1138,87 @@ class DatabaseComponentImpl<T> implements DatabaseComponent {
             db.mergeSettings(txn, s, namespace);
             transaction.attach(new SettingsUpdatedEvent(namespace, merged));
         }
+    }
+
+    @Override
+    public void addGroupAccessRequest(Transaction transaction, ForumAccessRequest forumAccessRequest) throws DbException {
+            if (transaction.isReadOnly()) throw new IllegalArgumentException();
+            T txn = unbox(transaction);
+            if (forumAccessRequest.isIncoming() &&
+                    !db.containsGroup(txn, forumAccessRequest.getGroupId()))
+                throw new NoSuchGroupException();
+            if (!db.containsContext(txn, forumAccessRequest.getContextId()))
+                throw new NoSuchContextException();
+            if (db.containsGroupAccessRequest(txn,
+                    forumAccessRequest.getContactId(),
+                    forumAccessRequest.getGroupId()))
+                throw new GroupAccessRequestExistsException(forumAccessRequest);
+            db.addGroupAccessRequest(txn, forumAccessRequest);
+            transaction.attach(new GroupAccessRequestAddedEvent(forumAccessRequest));
+    }
+
+
+    @Override
+    public Collection<ForumAccessRequest> getGroupAccessRequests(Transaction transaction) throws DbException {
+        T txn = unbox(transaction);
+        return db.getGroupAccessRequests(txn);
+    }
+
+
+    @Override
+    public void removeGroupAccessRequest(Transaction transaction, ContactId contactId, String pendingGroupId) throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsGroupAccessRequestByGroupId(txn, pendingGroupId))
+            throw new NoSuchPendingGroupException();
+        db.removeGroupAccessRequest(txn, contactId, pendingGroupId);
+/*        transaction.attach(new GroupAccessRequestRemovedEvent(contactId,
+                pendingGroupId));*/
+    }
+
+    @Override
+    public boolean containsGroupAccessRequestByGroupId(Transaction transaction, String pendingGroupId) throws DbException {
+        T txn = unbox(transaction);
+        return db.containsGroupAccessRequestByGroupId(txn, pendingGroupId);
+    }
+
+    @Override
+    public int countUnreadMessagesInContext(Transaction transaction, String contextId) throws DbException {
+        T txn = unbox(transaction);
+        return db.countUnreadMessagesInContext(txn, contextId);
+    }
+
+    @Override
+    public int countGroupAccessRequest(Transaction transaction,
+                                            boolean isIncoming) throws DbException {
+        T txn = unbox(transaction);
+        return db.countGroupAccessRequests(txn, isIncoming);
+    }
+
+    @Override
+    public void addCryptoKeys(Transaction transaction, KeyPair keyPair)
+            throws DbException {
+        if (transaction.isReadOnly()) throw new IllegalArgumentException();
+        T txn = unbox(transaction);
+        if (!db.containsCryptoKeyPair(txn)) {
+            db.addCryptoKeys(txn, keyPair);
+        }
+    }
+
+    @Override
+    public boolean containsCryptoKeys(Transaction transaction)
+            throws DbException {
+        T txn = unbox(transaction);
+        return db.containsCryptoKeyPair(txn);
+    }
+
+    @Override
+    public KeyPair getCryptoKeys(Transaction transaction)
+            throws DbException {
+        T txn = unbox(transaction);
+        if (!db.containsCryptoKeyPair(txn))
+            throw new NoSuchIdentityException();
+        return db.getCryptoKeys(txn);
     }
 
     private class CommitActionVisitor implements Visitor {

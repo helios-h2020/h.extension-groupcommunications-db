@@ -15,18 +15,24 @@ apply from: '../dagger.gradle'
 
 dependencies {
 
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.8'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.11'
+    implementation 'eu.h2020.helios_social.modules' +
+            '.groupcommunications-utils:groupcommunications-utils:1.0.10'
+    implementation 'eu.h2020.helios_social.modules' +
+            '.groupcommunications-api:groupcommunications-api:1.0.13'
 
-	implementation "com.google.dagger:dagger:2.24"
-	implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation "com.google.dagger:dagger:2.24"
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation 'com.google.code.gson:gson:2.8.7'
 
-	implementation 'com.madgag.spongycastle:core:1.58.0.0'
-	implementation 'com.h2database:h2:1.4.199' // The last version that supports Java 1.6
-	implementation 'org.bitlet:weupnp:0.1.4'
-	implementation 'net.i2p.crypto:eddsa:0.2.0'
+    implementation 'com.madgag.spongycastle:core:1.58.0.0'
+    implementation 'com.madgag.spongycastle:bcpg-jdk15on:1.58.0.0'
+    implementation 'com.madgag.spongycastle:bcpkix-jdk15on:1.58.0.0'
+    implementation 'com.madgag.spongycastle:prov:1.58.0.0'
+    implementation 'com.h2database:h2:1.4.199' // The last version that supports Java 1.6
+    implementation 'org.bitlet:weupnp:0.1.4'
+    implementation 'net.i2p.crypto:eddsa:0.2.0'
 
     annotationProcessor 'com.google.dagger:dagger-compiler:2.24'
 
-	signature 'org.codehaus.mojo.signature:java16:1.1@signature'
+    signature 'org.codehaus.mojo.signature:java16:1.1@signature'
 }

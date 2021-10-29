@@ -1,9 +1,11 @@
 package eu.h2020.helios_social.modules.groupcommunications.db.database;
 
-import java.sql.Connection;
+import java.security.KeyPair;
 import java.util.Collection;
 import java.util.Map;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.sharing.ForumAccessRequest;
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.EntityType;
 import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.SecretKey;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DataTooNewException;
@@ -105,6 +107,15 @@ interface Database<T> {
     void addContact(T txn, Contact contact)
             throws DbException;
 
+    void addGroupMember(T txn, GroupMember groupMember)
+            throws DbException;
+
+    void removeGroupMember(T txn, GroupMember groupMember)
+            throws DbException;
+
+    Collection<GroupMember> getGroupMembers(T txn, String groupId)
+        throws DbException;
+
     void addGroup(T txn, Group group, byte[] descriptor, GroupType groupType)
             throws DbException;
 
@@ -189,6 +200,7 @@ interface Database<T> {
     Collection<DBContext> getContexts(T txn)
             throws DbException;
 
+
     DBContext getContext(T txn, String contextId)
             throws DbException;
 
@@ -242,10 +254,20 @@ interface Database<T> {
     void removeContact(T txn, ContactId c)
             throws DbException;
 
+    void removeContactGroups(T txn, ContactId c)
+            throws DbException;
+
     void removeEvent(T txn, String eventId)
             throws DbException;
 
     void removeContext(T txn, String contextId) throws DbException;
+
+    void setContextPrivateName(T txn, String contextId, String name) throws DbException;
+
+
+
+    void removeContact(T txn, String contactId, String contextId)
+            throws DbException;
 
     void removeForumMember(T txn, String groupId, String fakeId)
             throws DbException;
@@ -387,4 +409,38 @@ interface Database<T> {
 
     void mergeSettings(T txn, Settings s, String namespace)
             throws DbException;
+
+    void setContextName(T txn, String contextId, String name) throws DbException;
+
+    void addGroupAccessRequest(T txn, ForumAccessRequest forumAccessRequest)
+            throws DbException;
+
+    boolean containsGroupAccessRequest(T txn,
+                                    ContactId contactId,
+                                    String pendingGroupId)
+            throws DbException;
+
+    Collection<ForumAccessRequest> getGroupAccessRequests(T txn)
+        throws DbException;
+
+    int countGroupAccessRequests(T txn, boolean isIncoming)
+            throws DbException;
+
+    void removeGroupAccessRequest(T txn, ContactId contactId,
+                               String pendingGroupId)
+            throws DbException;
+
+    boolean containsGroupAccessRequestByGroupId(T txn,
+                                                       String pendingGroupId)
+            throws DbException;
+
+    int countUnreadMessagesInContext(T txn, String contextId)
+            throws DbException;
+
+    void addCryptoKeys(T txn, KeyPair keyPair) throws DbException;
+
+    KeyPair getCryptoKeys(T txn) throws DbException;
+
+    boolean containsCryptoKeyPair(T txn) throws DbException;
+
 }
